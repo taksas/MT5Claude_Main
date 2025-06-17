@@ -1,110 +1,66 @@
 #!/usr/bin/env python3
 """
-Simple Automated Forex Trading System without external dependencies
-Uses only Python standard library for basic technical analysis
+Enhanced MT5 Automated Forex Trading System
+Connects to MT5 Bridge API and performs automated short-term trading with multiple strategies.
+Features:
+- Multiple trading strategies with historical validation
+- Risk management with position limits and stop losses
+- Real-time market analysis and signal generation
+- Automated position management with time-based exits
 """
 
 import json
-import time
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+import time
+import sys
 import urllib.request
 import urllib.parse
 import urllib.error
+import random
+import statistics
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('trading_session.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
 
-class MT5API:
-    def __init__(self, host: str = "172.28.144.1", port: int = 8000):
-        self.base_url = f"http://{host}:{port}"
-        
-    def _make_request(self, method: str, endpoint: str, data: Dict = None) -> Dict:
-        """Make HTTP request to MT5 API"""
-        url = f"{self.base_url}{endpoint}"
-        
-        if method == "GET":
-            if data:
-                query_string = urllib.parse.urlencode(data)
-                url = f"{url}?{query_string}"
-            req = urllib.request.Request(url)
-        else:
-            json_data = json.dumps(data).encode('utf-8') if data else None
-            req = urllib.request.Request(url, data=json_data)
-            req.add_header('Content-Type', 'application/json')
-            if method == "DELETE":
-                req.get_method = lambda: 'DELETE'
-            elif method == "PATCH":
-                req.get_method = lambda: 'PATCH'
-        
-        try:
-            with urllib.request.urlopen(req) as response:
-                return json.loads(response.read().decode('utf-8'))
-        except urllib.error.HTTPError as e:
-            logger.error(f"HTTP Error {e.code}: {e.read().decode('utf-8')}")
-            raise
-        except Exception as e:
-            logger.error(f"Request failed: {e}")
-            raise
+class TechnicalAnalysis:
+    """Advanced technical analysis using only standard library"""
     
-    def get_status(self) -> Dict:
-        return self._make_request("GET", "/status/mt5")
-    
-    def get_account_info(self) -> Dict:
-        return self._make_request("GET", "/account/")
-        
-    def get_tradable_symbols(self) -> List[str]:
-        return self._make_request("GET", "/market/symbols/tradable")
-        
-    def get_historical_data(self, symbol: str, timeframe: str, count: int) -> List[Dict]:
-        data = {
-            "symbol": symbol,
-            "timeframe": timeframe,
-            "count": count
-        }
-        return self._make_request("POST", "/market/history", data)
-        
-    def place_order(self, symbol: str, order_type: int, volume: float, sl: float = None, tp: float = None) -> Dict:
-        order_data = {
-            "action": "TRADE_ACTION_DEAL",
-            "symbol": symbol,
-            "volume": volume,
-            "type": order_type,
-            "comment": "Simple automated trading"
-        }
-        if sl:
-            order_data["sl"] = sl
-        if tp:
-            order_data["tp"] = tp
-            
-        return self._make_request("POST", "/trading/orders", order_data)
-    
-    def get_positions(self) -> List[Dict]:
-        return self._make_request("GET", "/trading/positions")
-    
-    def close_position(self, ticket: int) -> Dict:
-        return self._make_request("DELETE", f"/trading/positions/{ticket}", {"deviation": 20})
-
-class SimpleIndicators:
     @staticmethod
-    def simple_moving_average(prices: List[float], period: int) -> List[float]:
-        """Calculate Simple Moving Average"""
+    def simple_moving_average(prices: List[float], period: int) -> float:
+        """Calculate simple moving average"""
         if len(prices) < period:
-            return []
-        
-        sma = []
-        for i in range(period - 1, len(prices)):
-            avg = sum(prices[i - period + 1:i + 1]) / period
-            sma.append(avg)
-        return sma
+            return 0.0
+        return sum(prices[-period:]) / period
     
     @staticmethod
-    def rsi_simple(prices: List[float], period: int = 14) -> List[float]:
-        """Simple RSI calculation"""
+    def exponential_moving_average(prices: List[float], period: int) -> float:
+        """Calculate exponential moving average"""
+        if len(prices) < period:
+            return 0.0
+        
+        multiplier = 2 / (period + 1)
+        ema = prices[0]
+        
+        for price in prices[1:]:
+            ema = (price * multiplier) + (ema * (1 - multiplier))
+        
+        return ema
+    
+    @staticmethod
+    def rsi(prices: List[float], period: int = 14) -> float:
+        """Calculate Relative Strength Index"""
         if len(prices) < period + 1:
-            return []
+            return 50.0
         
         gains = []
         losses = []
@@ -118,411 +74,644 @@ class SimpleIndicators:
                 gains.append(0)
                 losses.append(abs(change))
         
-        rsi_values = []
-        for i in range(period - 1, len(gains)):
-            avg_gain = sum(gains[i - period + 1:i + 1]) / period
-            avg_loss = sum(losses[i - period + 1:i + 1]) / period
-            
-            if avg_loss == 0:
-                rsi = 100
-            else:
-                rs = avg_gain / avg_loss
-                rsi = 100 - (100 / (1 + rs))
-            
-            rsi_values.append(rsi)
+        if len(gains) < period:
+            return 50.0
         
-        return rsi_values
+        avg_gain = sum(gains[-period:]) / period
+        avg_loss = sum(losses[-period:]) / period
+        
+        if avg_loss == 0:
+            return 100.0
+        
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
+    
+    @staticmethod
+    def bollinger_bands(prices: List[float], period: int = 20, std_dev: float = 2.0) -> Tuple[float, float, float]:
+        """Calculate Bollinger Bands (upper, middle, lower)"""
+        if len(prices) < period:
+            return 0.0, 0.0, 0.0
+        
+        recent_prices = prices[-period:]
+        middle = sum(recent_prices) / period
+        
+        # Calculate standard deviation
+        variance = sum((price - middle) ** 2 for price in recent_prices) / period
+        std = variance ** 0.5
+        
+        upper = middle + (std * std_dev)
+        lower = middle - (std * std_dev)
+        
+        return upper, middle, lower
+    
+    @staticmethod
+    def macd(prices: List[float], fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[float, float, float]:
+        """Calculate MACD (MACD line, Signal line, Histogram)"""
+        if len(prices) < slow:
+            return 0.0, 0.0, 0.0
+        
+        ema_fast = TechnicalAnalysis.exponential_moving_average(prices, fast)
+        ema_slow = TechnicalAnalysis.exponential_moving_average(prices, slow)
+        
+        macd_line = ema_fast - ema_slow
+        
+        # For signal line, we would need MACD history, simplified here
+        signal_line = macd_line * 0.9  # Simplified approximation
+        histogram = macd_line - signal_line
+        
+        return macd_line, signal_line, histogram
+    
+    @staticmethod
+    def stochastic_oscillator(highs: List[float], lows: List[float], closes: List[float], k_period: int = 14) -> float:
+        """Calculate Stochastic Oscillator %K"""
+        if len(closes) < k_period:
+            return 50.0
+        
+        recent_highs = highs[-k_period:]
+        recent_lows = lows[-k_period:]
+        current_close = closes[-1]
+        
+        highest_high = max(recent_highs)
+        lowest_low = min(recent_lows)
+        
+        if highest_high == lowest_low:
+            return 50.0
+        
+        k_percent = ((current_close - lowest_low) / (highest_high - lowest_low)) * 100
+        return k_percent
 
-class SimpleTradingStrategy:
-    def __init__(self, name: str):
-        self.name = name
-        
-    def should_buy(self, prices: List[float]) -> bool:
-        """Check if should buy based on simple price action"""
-        if len(prices) < 20:
-            return False
-            
-        # More aggressive strategy for higher signal frequency
-        current_price = prices[-1]
-        prev_price = prices[-2]
-        
-        # Simple price momentum: buy if price increased and above short-term average
-        short_ma = sum(prices[-5:]) / 5  # 5-period average
-        long_ma = sum(prices[-10:]) / 10  # 10-period average
-        
-        # Buy if short MA > long MA and price is rising
-        return (short_ma > long_ma and 
-                current_price > prev_price and 
-                current_price > short_ma)
-    
-    def should_sell(self, prices: List[float]) -> bool:
-        """Check if should sell based on simple price action"""
-        if len(prices) < 20:
-            return False
-            
-        # More aggressive strategy for higher signal frequency
-        current_price = prices[-1]
-        prev_price = prices[-2]
-        
-        # Simple price momentum: sell if price decreased and below short-term average
-        short_ma = sum(prices[-5:]) / 5  # 5-period average
-        long_ma = sum(prices[-10:]) / 10  # 10-period average
-        
-        # Sell if short MA < long MA and price is falling
-        return (short_ma < long_ma and 
-                current_price < prev_price and 
-                current_price < short_ma)
-    
-    def calculate_stop_loss(self, entry_price: float, is_buy: bool) -> float:
-        """Calculate stop loss (1% risk)"""
-        if is_buy:
-            return entry_price * 0.99
-        else:
-            return entry_price * 1.01
-    
-    def calculate_take_profit(self, entry_price: float, is_buy: bool) -> float:
-        """Calculate take profit (2% target)"""
-        if is_buy:
-            return entry_price * 1.02
-        else:
-            return entry_price * 0.98
-
-class SimpleForexTrader:
+class MT5EnhancedBot:
     def __init__(self):
-        self.api = MT5API()
-        self.strategy = SimpleTradingStrategy("Simple Momentum")
-        self.active_trades = {}
-        self.lot_size = 0.01
-        self.max_trades = 2
+        self.api_base_url = self._find_api_host()
+        self.lot_size = 0.01  # Fixed lot size as per requirements
+        self.max_positions = 3  # Maximum concurrent positions
+        self.min_profit_pips = 5  # Minimum profit target in pips
+        self.max_loss_pips = 12  # Maximum loss in pips (stop loss)
+        self.position_hold_time_minutes = 20  # Maximum hold time in minutes
+        self.trading_symbols = []
+        self.ta = TechnicalAnalysis()
+        self.strategies = ['sma_crossover', 'rsi_extremes', 'bollinger_bounce', 'momentum_breakout']
+        self.strategy_performance = {strategy: {'wins': 0, 'losses': 0, 'total_profit': 0.0} for strategy in self.strategies}
+        self.trade_history = []
         
-    def test_connection(self) -> bool:
-        """Test connection to MT5 API"""
-        try:
-            status = self.api.get_status()
-            logger.info(f"MT5 Connection Status: {status.get('connected', False)}")
-            return status.get('connected', False)
-        except Exception as e:
-            logger.error(f"Connection test failed: {e}")
-            return False
+    def _find_api_host(self) -> str:
+        """Find the correct API host for WSL environment"""
+        possible_hosts = [
+            "172.28.144.1:8000",  # WSL default gateway (Windows host)
+            "localhost:8000",
+            "127.0.0.1:8000",
+            "172.28.147.233:8000"
+        ]
+        
+        for host in possible_hosts:
+            try:
+                url = f"http://{host}/status/ping"
+                with urllib.request.urlopen(url, timeout=2) as response:
+                    data = json.loads(response.read().decode())
+                    if data.get("status") == "pong":
+                        logger.info(f"Found API server at: {host}")
+                        return f"http://{host}"
+            except:
+                continue
+        
+        # Default fallback
+        return "http://172.28.147.233:8000"
     
-    def get_account_info(self) -> Dict:
+    def api_request(self, method: str, endpoint: str, data: dict = None) -> Optional[dict]:
+        """Make API request to MT5 Bridge"""
+        url = f"{self.api_base_url}{endpoint}"
+        
+        try:
+            if method == "GET":
+                with urllib.request.urlopen(url, timeout=10) as response:
+                    if response.status == 200:
+                        return json.loads(response.read().decode())
+            else:
+                # POST, DELETE, PATCH
+                request_data = json.dumps(data).encode() if data else None
+                headers = {'Content-Type': 'application/json'} if data else {}
+                
+                req = urllib.request.Request(url, data=request_data, headers=headers, method=method)
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    if response.status in [200, 201]:
+                        return json.loads(response.read().decode())
+            
+            return None
+            
+        except urllib.error.HTTPError as e:
+            logger.error(f"HTTP Error {e.code}: {e.reason}")
+            return None
+        except Exception as e:
+            logger.error(f"API Request failed: {e}")
+            return None
+    
+    def check_connection(self) -> bool:
+        """Check if MT5 Bridge API is accessible"""
+        result = self.api_request("GET", "/status/ping")
+        if result and result.get("status") == "pong":
+            logger.info("✓ MT5 Bridge API connection successful")
+            return True
+        logger.error("✗ Failed to connect to MT5 Bridge API")
+        return False
+    
+    def check_mt5_status(self) -> bool:
+        """Check MT5 terminal connection status"""
+        result = self.api_request("GET", "/status/mt5")
+        if result and result.get("connected"):
+            logger.info("✓ MT5 Terminal connected and ready")
+            return True
+        logger.error("✗ MT5 Terminal not connected")
+        return False
+    
+    def get_account_info(self) -> Optional[dict]:
         """Get account information"""
-        try:
-            account = self.api.get_account_info()
-            logger.info(f"Account Balance: {account.get('balance', 0)} {account.get('currency', 'USD')}")
-            return account
-        except Exception as e:
-            logger.error(f"Failed to get account info: {e}")
-            return {}
+        return self.api_request("GET", "/account/")
     
-    def backtest_simple(self, symbol: str, data: List[Dict]) -> Dict:
-        """Simple backtest to validate strategy"""
-        if len(data) < 50:
-            return {"valid": False, "reason": "Insufficient data"}
+    def get_tradable_symbols(self) -> List[str]:
+        """Get list of verified working symbols (only those ending with #)"""
+        # Use only verified working symbols to avoid 404 errors
+        verified_working_symbols = [
+            "USDCNH#", "USDDKK#", "USDHKD#", "USDHUF#", "USDMXN#", 
+            "USDNOK#", "USDPLN#", "USDSEK#", "USDSGD#", "USDTRY#", 
+            "USDZAR#", "EURUSD#", "GBPUSD#", "USDCAD#", "USDCHF#", 
+            "USDJPY#", "AUDUSD#", "NZDUSD#"
+        ]
         
-        prices = [candle['close'] for candle in data]
-        balance = 10000
-        trades = 0
-        wins = 0
-        
-        position = None
-        
-        for i in range(20, len(prices) - 5):  # Leave room for exit
-            current_prices = prices[:i+1]
-            current_price = prices[i]
-            
-            if position is None:
-                # Look for entry
-                if self.strategy.should_buy(current_prices):
-                    sl = self.strategy.calculate_stop_loss(current_price, True)
-                    tp = self.strategy.calculate_take_profit(current_price, True)
-                    position = {
-                        'type': 'buy',
-                        'entry': current_price,
-                        'sl': sl,
-                        'tp': tp,
-                        'entry_idx': i
-                    }
-                elif self.strategy.should_sell(current_prices):
-                    sl = self.strategy.calculate_stop_loss(current_price, False)
-                    tp = self.strategy.calculate_take_profit(current_price, False)
-                    position = {
-                        'type': 'sell',
-                        'entry': current_price,
-                        'sl': sl,
-                        'tp': tp,
-                        'entry_idx': i
-                    }
+        # Test each symbol to ensure it actually works
+        working_symbols = []
+        for symbol in verified_working_symbols:
+            symbol_info = self.get_symbol_info(symbol)
+            if symbol_info:
+                trade_mode = symbol_info.get('trade_mode_description', 'DISABLED')
+                if trade_mode == 'FULL':
+                    working_symbols.append(symbol)
+                    logger.info(f"Verified working symbol: {symbol} (trade_mode: {trade_mode})")
+                else:
+                    logger.warning(f"Symbol {symbol} has restricted trade mode: {trade_mode}")
             else:
-                # Check exit conditions
-                should_exit = False
-                profit = 0
-                
-                if position['type'] == 'buy':
-                    if current_price <= position['sl']:
-                        should_exit = True
-                        profit = (position['sl'] - position['entry']) * 100000 * self.lot_size
-                    elif current_price >= position['tp']:
-                        should_exit = True
-                        profit = (position['tp'] - position['entry']) * 100000 * self.lot_size
-                    elif i - position['entry_idx'] >= 10:  # Max 10 candles hold
-                        should_exit = True
-                        profit = (current_price - position['entry']) * 100000 * self.lot_size
-                else:  # sell
-                    if current_price >= position['sl']:
-                        should_exit = True
-                        profit = (position['entry'] - position['sl']) * 100000 * self.lot_size
-                    elif current_price <= position['tp']:
-                        should_exit = True
-                        profit = (position['entry'] - position['tp']) * 100000 * self.lot_size
-                    elif i - position['entry_idx'] >= 10:  # Max 10 candles hold
-                        should_exit = True
-                        profit = (position['entry'] - current_price) * 100000 * self.lot_size
-                
-                if should_exit:
-                    balance += profit
-                    trades += 1
-                    if profit > 0:
-                        wins += 1
-                    position = None
+                logger.warning(f"Symbol {symbol} not accessible via API")
         
-        win_rate = wins / trades if trades > 0 else 0
-        total_return = (balance - 10000) / 10000 * 100
-        
-        # More lenient validation criteria to allow trading
-        is_valid = trades >= 2 and total_return > -10  # At least 2 trades and not too much loss
-        
-        return {
-            "valid": is_valid,
-            "trades": trades,
-            "win_rate": win_rate,
-            "total_return": total_return,
-            "final_balance": balance
+        if working_symbols:
+            # Prioritize major forex pairs for better liquidity
+            major_pairs = ['EURUSD#', 'GBPUSD#', 'USDCAD#', 'USDCHF#', 'USDJPY#', 'AUDUSD#', 'NZDUSD#']
+            prioritized_symbols = [s for s in major_pairs if s in working_symbols]
+            exotic_pairs = [s for s in working_symbols if s not in major_pairs]
+            
+            final_symbols = prioritized_symbols + exotic_pairs[:3]  # Limit exotic pairs
+            logger.info(f"Using {len(final_symbols)} verified symbols: {final_symbols}")
+            return final_symbols
+        else:
+            logger.error("No verified working symbols found")
+            return []
+    
+    def get_symbol_info(self, symbol: str) -> Optional[dict]:
+        """Get detailed symbol information"""
+        return self.api_request("GET", f"/market/symbols/{symbol}")
+    
+    def get_historical_data(self, symbol: str, timeframe: str = "M5", count: int = 50) -> List[dict]:
+        """Get historical price data"""
+        data = {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "count": count
         }
+        result = self.api_request("POST", "/market/history", data)
+        return result if result else []
     
-    def execute_trade(self, symbol: str, signal_type: str) -> bool:
-        """Execute a trade"""
-        try:
-            # Get current price
-            recent_data = self.api.get_historical_data(symbol, "M1", 2)
-            if not recent_data:
-                return False
-                
-            current_price = recent_data[-1]['close']
+    def backtest_strategy(self, strategy_name: str, data: List[dict], symbol_info: dict) -> dict:
+        """Backtest a strategy on historical data"""
+        if len(data) < 30:
+            return {'trades': 0, 'profit': 0.0, 'win_rate': 0.0}
+        
+        trades = []
+        point = symbol_info.get('point', 0.00001)
+        
+        for i in range(25, len(data) - 5):  # Leave room for indicators and future price movement
+            hist_data = data[:i+1]
+            signal = self.analyze_market_strategy(strategy_name, hist_data, symbol_info)
             
-            if signal_type == 'buy':
-                order_type = 0  # BUY
-                sl = self.strategy.calculate_stop_loss(current_price, True)
-                tp = self.strategy.calculate_take_profit(current_price, True)
+            if signal:
+                # Simulate trade execution over next 5 bars
+                entry_price = signal['entry_price']
+                stop_loss = signal['stop_loss']
+                take_profit = signal['take_profit']
+                
+                # Check next 5 bars for SL/TP hit
+                trade_result = None
+                for j in range(i+1, min(i+6, len(data))):
+                    bar = data[j]
+                    high = float(bar['high'])
+                    low = float(bar['low'])
+                    
+                    if signal['type'] == 'BUY':
+                        if low <= stop_loss:
+                            trade_result = {'profit': (stop_loss - entry_price) / point, 'outcome': 'loss'}
+                            break
+                        elif high >= take_profit:
+                            trade_result = {'profit': (take_profit - entry_price) / point, 'outcome': 'win'}
+                            break
+                    else:  # SELL
+                        if high >= stop_loss:
+                            trade_result = {'profit': (entry_price - stop_loss) / point, 'outcome': 'loss'}
+                            break
+                        elif low <= take_profit:
+                            trade_result = {'profit': (entry_price - take_profit) / point, 'outcome': 'win'}
+                            break
+                
+                if trade_result:
+                    trades.append(trade_result)
+        
+        if not trades:
+            return {'trades': 0, 'profit': 0.0, 'win_rate': 0.0}
+        
+        total_profit = sum(trade['profit'] for trade in trades)
+        wins = sum(1 for trade in trades if trade['outcome'] == 'win')
+        win_rate = wins / len(trades)
+        
+        return {'trades': len(trades), 'profit': total_profit, 'win_rate': win_rate}
+    
+    def analyze_market_strategy(self, strategy_name: str, data: List[dict], symbol_info: dict) -> Optional[dict]:
+        """Analyze market using specific strategy"""
+        if len(data) < 25:
+            return None
+        
+        closes = [float(bar['close']) for bar in data]
+        highs = [float(bar['high']) for bar in data]
+        lows = [float(bar['low']) for bar in data]
+        current_price = closes[-1]
+        point = symbol_info.get('point', 0.00001)
+        
+        if strategy_name == 'sma_crossover':
+            sma_5 = self.ta.simple_moving_average(closes, 5)
+            sma_20 = self.ta.simple_moving_average(closes, 20)
+            rsi = self.ta.rsi(closes, 14)
+            
+            if sma_5 > sma_20 and rsi < 70 and current_price > sma_5:
+                return {
+                    'type': 'BUY',
+                    'entry_price': current_price,
+                    'stop_loss': current_price - (self.max_loss_pips * point),
+                    'take_profit': current_price + (self.min_profit_pips * point),
+                    'strategy': strategy_name
+                }
+            elif sma_5 < sma_20 and rsi > 30 and current_price < sma_5:
+                return {
+                    'type': 'SELL',
+                    'entry_price': current_price,
+                    'stop_loss': current_price + (self.max_loss_pips * point),
+                    'take_profit': current_price - (self.min_profit_pips * point),
+                    'strategy': strategy_name
+                }
+        
+        elif strategy_name == 'rsi_extremes':
+            rsi = self.ta.rsi(closes, 14)
+            
+            if rsi < 20:  # Oversold
+                return {
+                    'type': 'BUY',
+                    'entry_price': current_price,
+                    'stop_loss': current_price - (self.max_loss_pips * point),
+                    'take_profit': current_price + (self.min_profit_pips * point),
+                    'strategy': strategy_name
+                }
+            elif rsi > 80:  # Overbought
+                return {
+                    'type': 'SELL',
+                    'entry_price': current_price,
+                    'stop_loss': current_price + (self.max_loss_pips * point),
+                    'take_profit': current_price - (self.min_profit_pips * point),
+                    'strategy': strategy_name
+                }
+        
+        elif strategy_name == 'bollinger_bounce':
+            bb_upper, bb_middle, bb_lower = self.ta.bollinger_bands(closes, 20, 2.0)
+            rsi = self.ta.rsi(closes, 14)
+            
+            if current_price <= bb_lower and rsi < 35:
+                return {
+                    'type': 'BUY',
+                    'entry_price': current_price,
+                    'stop_loss': current_price - (self.max_loss_pips * point),
+                    'take_profit': current_price + (self.min_profit_pips * point),
+                    'strategy': strategy_name
+                }
+            elif current_price >= bb_upper and rsi > 65:
+                return {
+                    'type': 'SELL',
+                    'entry_price': current_price,
+                    'stop_loss': current_price + (self.max_loss_pips * point),
+                    'take_profit': current_price - (self.min_profit_pips * point),
+                    'strategy': strategy_name
+                }
+        
+        elif strategy_name == 'momentum_breakout':
+            sma_10 = self.ta.simple_moving_average(closes, 10)
+            stoch = self.ta.stochastic_oscillator(highs, lows, closes, 14)
+            
+            # Recent volatility
+            recent_range = max(highs[-5:]) - min(lows[-5:])
+            avg_range = sum(highs[i] - lows[i] for i in range(-10, 0)) / 10
+            
+            if current_price > sma_10 and stoch < 80 and recent_range > avg_range * 1.2:
+                return {
+                    'type': 'BUY',
+                    'entry_price': current_price,
+                    'stop_loss': current_price - (self.max_loss_pips * point),
+                    'take_profit': current_price + (self.min_profit_pips * point),
+                    'strategy': strategy_name
+                }
+            elif current_price < sma_10 and stoch > 20 and recent_range > avg_range * 1.2:
+                return {
+                    'type': 'SELL',
+                    'entry_price': current_price,
+                    'stop_loss': current_price + (self.max_loss_pips * point),
+                    'take_profit': current_price - (self.min_profit_pips * point),
+                    'strategy': strategy_name
+                }
+        
+        return None
+    
+    def analyze_market(self, symbol: str, data: List[dict]) -> Optional[dict]:
+        """Enhanced market analysis using multiple strategies with backtesting"""
+        if len(data) < 30:
+            return None
+        
+        symbol_info = self.get_symbol_info(symbol)
+        if not symbol_info:
+            return None
+        
+        # Test all strategies on historical data
+        strategy_results = {}
+        for strategy in self.strategies:
+            backtest_result = self.backtest_strategy(strategy, data, symbol_info)
+            if backtest_result['trades'] > 0 and backtest_result['profit'] > 0:
+                strategy_results[strategy] = backtest_result
+        
+        # Choose best performing strategy
+        if not strategy_results:
+            return None
+        
+        best_strategy = max(strategy_results.keys(), 
+                           key=lambda s: strategy_results[s]['profit'] * strategy_results[s]['win_rate'])
+        
+        # Generate signal using best strategy
+        signal = self.analyze_market_strategy(best_strategy, data, symbol_info)
+        
+        if signal:
+            backtest_info = strategy_results[best_strategy]
+            logger.info(f"Generated {signal['type']} signal for {symbol} using {best_strategy}")
+            logger.info(f"Strategy backtest: {backtest_info['trades']} trades, {backtest_info['profit']:.1f} pips profit, {backtest_info['win_rate']:.2%} win rate")
+            
+            # Add confidence based on backtest results
+            if backtest_info['win_rate'] > 0.6 and backtest_info['profit'] > 10:
+                signal['confidence'] = 'high'
+            elif backtest_info['win_rate'] > 0.5 and backtest_info['profit'] > 5:
+                signal['confidence'] = 'medium'
             else:
-                order_type = 1  # SELL
-                sl = self.strategy.calculate_stop_loss(current_price, False)
-                tp = self.strategy.calculate_take_profit(current_price, False)
+                signal['confidence'] = 'low'
+        
+        return signal
+    
+    def place_trade(self, symbol: str, signal: dict) -> Optional[dict]:
+        """Place a trade based on signal with enhanced validation"""
+        # Skip low confidence signals randomly to reduce risk
+        if signal.get('confidence') == 'low' and random.random() < 0.7:
+            logger.info(f"Skipping low confidence {signal['type']} signal for {symbol}")
+            return None
+        
+        order_type = 0 if signal['type'] == 'BUY' else 1
+        
+        trade_request = {
+            "action": 1,  # TRADE_ACTION_DEAL (market order)
+            "symbol": symbol,
+            "volume": self.lot_size,
+            "type": order_type,
+            "sl": signal['stop_loss'],
+            "tp": signal['take_profit'],
+            "comment": f"EnhancedBot_{signal.get('strategy', 'unknown')}_{signal.get('confidence', 'medium')}"
+        }
+        
+        result = self.api_request("POST", "/trading/orders", trade_request)
+        if result and result.get('retcode') == 10009:
+            logger.info(f"✓ Trade placed: {signal['type']} {symbol} at {signal['entry_price']:.5f} using {signal.get('strategy', 'unknown')} strategy")
             
-            # Place order
-            result = self.api.place_order(symbol, order_type, self.lot_size, sl, tp)
+            # Record trade for performance tracking
+            trade_record = {
+                'timestamp': datetime.now(),
+                'symbol': symbol,
+                'type': signal['type'],
+                'strategy': signal.get('strategy', 'unknown'),
+                'entry_price': signal['entry_price'],
+                'stop_loss': signal['stop_loss'],
+                'take_profit': signal['take_profit'],
+                'confidence': signal.get('confidence', 'medium'),
+                'ticket': result.get('order', 0)
+            }
+            self.trade_history.append(trade_record)
             
-            if result.get('retcode') == 10009:  # Success
-                logger.info(f"Trade executed: {signal_type.upper()} {symbol} at {current_price:.5f}, "
-                          f"SL: {sl:.5f}, TP: {tp:.5f}")
-                
-                # Store trade info
-                order_id = result.get('order', result.get('deal'))
-                if order_id:
-                    self.active_trades[order_id] = {
-                        'symbol': symbol,
-                        'type': signal_type,
-                        'entry_price': current_price,
-                        'sl': sl,
-                        'tp': tp,
-                        'entry_time': datetime.now()
-                    }
-                return True
-            else:
-                logger.error(f"Trade execution failed: {result}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error executing trade: {e}")
+            return result
+        else:
+            logger.error(f"✗ Failed to place trade for {symbol}: {result}")
+            return None
+    
+    def get_open_positions(self) -> List[dict]:
+        """Get all open positions"""
+        result = self.api_request("GET", "/trading/positions")
+        return result if result else []
+    
+    def close_position(self, ticket: int) -> bool:
+        """Close a position by ticket"""
+        close_request = {"deviation": 20}
+        result = self.api_request("DELETE", f"/trading/positions/{ticket}", close_request)
+        if result and result.get('retcode') == 10009:
+            logger.info(f"✓ Position {ticket} closed successfully")
+            return True
+        else:
+            logger.error(f"✗ Failed to close position {ticket}")
             return False
     
-    def monitor_positions(self):
-        """Monitor and manage open positions"""
-        try:
-            positions = self.api.get_positions()
-            current_time = datetime.now()
-            
-            for position in positions:
-                ticket = position.get('ticket')
-                time_elapsed = 0
-                
-                # Calculate time elapsed if we have trade info
-                if ticket in self.active_trades:
-                    time_elapsed = (current_time - self.active_trades[ticket]['entry_time']).total_seconds() / 60
-                
-                # Close positions after 5-30 minutes
-                should_close = False
-                reason = ""
-                
-                if time_elapsed >= 30:  # Max hold time
-                    should_close = True
-                    reason = "max_time"
-                elif time_elapsed >= 5:  # Min hold time
-                    current_profit = position.get('profit', 0)
-                    if current_profit > 0:  # Close if profitable
-                        should_close = True
-                        reason = "profitable_exit"
-                
-                if should_close:
-                    try:
-                        self.api.close_position(ticket)
-                        logger.info(f"Position {ticket} closed after {time_elapsed:.1f} minutes ({reason}), "
-                                  f"Profit: {position.get('profit', 0):.2f}")
-                        if ticket in self.active_trades:
-                            del self.active_trades[ticket]
-                    except Exception as e:
-                        logger.error(f"Failed to close position {ticket}: {e}")
-                        
-        except Exception as e:
-            logger.error(f"Error monitoring positions: {e}")
-    
-    def run_trading_session(self):
-        """Main trading loop"""
-        logger.info("Starting simple automated forex trading...")
+    def manage_open_positions(self):
+        """Manage open positions based on time and profit"""
+        positions = self.get_open_positions()
+        current_time = datetime.now()
         
-        # Test connection
-        if not self.test_connection():
-            logger.error("Cannot connect to MT5 API. Exiting.")
+        for position in positions:
+            ticket = position['ticket']
+            symbol = position['symbol']
+            profit = position.get('profit', 0)
+            
+            # Parse open time
+            time_str = position.get('time', '')
+            try:
+                if 'T' in time_str:
+                    open_time = datetime.fromisoformat(time_str.replace('Z', ''))
+                else:
+                    open_time = datetime.fromtimestamp(int(time_str))
+            except:
+                # If we can't parse time, assume it's been open for max time
+                open_time = current_time - timedelta(minutes=self.position_hold_time_minutes + 1)
+            
+            minutes_open = (current_time - open_time).total_seconds() / 60
+            
+            # Close position if held too long
+            if minutes_open > self.position_hold_time_minutes:
+                logger.info(f"Closing position {ticket} ({symbol}) - held for {minutes_open:.1f} minutes (limit: {self.position_hold_time_minutes})")
+                self.close_position(ticket)
+                continue
+            
+            # Log current profit
+            if profit != 0:
+                logger.info(f"Position {ticket} ({symbol}): {profit:.2f} USD profit, open for {minutes_open:.1f} min")
+    
+    def print_performance_summary(self):
+        """Print trading performance summary"""
+        logger.info("\n=== TRADING PERFORMANCE SUMMARY ===")
+        
+        if not self.trade_history:
+            logger.info("No trades executed during this session.")
+            return
+        
+        total_trades = len(self.trade_history)
+        strategies_used = {}
+        
+        for trade in self.trade_history:
+            strategy = trade.get('strategy', 'unknown')
+            if strategy not in strategies_used:
+                strategies_used[strategy] = 0
+            strategies_used[strategy] += 1
+        
+        logger.info(f"Total trades placed: {total_trades}")
+        logger.info("Strategies used:")
+        for strategy, count in strategies_used.items():
+            logger.info(f"  - {strategy}: {count} trades")
+        
+        # Get final positions status
+        positions = self.get_open_positions()
+        if positions:
+            total_unrealized_pnl = sum(float(pos.get('profit', 0)) for pos in positions)
+            logger.info(f"Open positions: {len(positions)}")
+            logger.info(f"Total unrealized P&L: {total_unrealized_pnl:.2f} USD")
+    
+    def trading_session(self):
+        """Enhanced trading session with multiple strategies and performance tracking"""
+        logger.info("🚀 Starting Enhanced MT5 Trading Bot...")
+        logger.info("Features: Multiple strategies, backtesting, risk management")
+        
+        # Initial checks
+        if not self.check_connection():
+            logger.error("Cannot connect to MT5 Bridge API. Please ensure it's running.")
+            return
+        
+        if not self.check_mt5_status():
+            logger.error("MT5 Terminal not connected. Please check terminal status.")
             return
         
         # Get account info
-        account = self.get_account_info()
-        if not account:
-            logger.error("Cannot get account information. Exiting.")
-            return
+        account_info = self.get_account_info()
+        if account_info:
+            balance = account_info.get('balance', 0)
+            currency = account_info.get('currency', 'USD')
+            margin_free = account_info.get('margin_free', 0)
+            logger.info(f"💰 Account Balance: {balance} {currency}")
+            logger.info(f"💳 Free Margin: {margin_free} {currency}")
         
         # Get tradable symbols
+        self.trading_symbols = self.get_tradable_symbols()
+        if not self.trading_symbols:
+            logger.error("No tradable symbols found (looking for symbols ending with #)")
+            return
+        
+        logger.info(f"🎯 Available strategies: {', '.join(self.strategies)}")
+        logger.info(f"📊 Analyzing {len(self.trading_symbols)} symbols: {', '.join(self.trading_symbols)}")
+        
+        # Trading loop
+        iteration = 0
+        max_iterations = 300  # Increased iterations for longer session
+        start_time = datetime.now()
+        
         try:
-            symbols = self.api.get_tradable_symbols()
-            if not symbols:
-                logger.error("No tradable symbols found. Exiting.")
-                return
-            
-            # Focus on EURUSD first, then other major pairs
-            preferred_symbols = ['EURUSD', 'GBPUSD', 'USDJPY']
-            trading_symbols = []
-            
-            for symbol in preferred_symbols:
-                if symbol in symbols:
-                    trading_symbols.append(symbol)
-            
-            if not trading_symbols:
-                trading_symbols = symbols[:2]  # Use first 2 available
-                
-            logger.info(f"Trading symbols: {trading_symbols}")
-            
-        except Exception as e:
-            logger.error(f"Error getting tradable symbols: {e}")
-            return
-        
-        # Validate strategies with backtesting
-        valid_symbols = []
-        for symbol in trading_symbols:
-            try:
-                historical_data = self.api.get_historical_data(symbol, "M15", 200)  # 15-min data
-                if historical_data:
-                    backtest_result = self.backtest_simple(symbol, historical_data)
-                    logger.info(f"Backtest {symbol}: Valid={backtest_result['valid']}, "
-                              f"Trades={backtest_result.get('trades', 0)}, "
-                              f"Win Rate={backtest_result.get('win_rate', 0):.2%}, "
-                              f"Return={backtest_result.get('total_return', 0):.2f}%")
-                    
-                    if backtest_result['valid']:
-                        valid_symbols.append(symbol)
-            except Exception as e:
-                logger.error(f"Backtest failed for {symbol}: {e}")
-        
-        if not valid_symbols:
-            logger.error("No symbols passed backtesting validation. Exiting.")
-            return
-        
-        logger.info(f"Validated symbols for trading: {valid_symbols}")
-        
-        # Main trading loop
-        session_start = datetime.now()
-        max_session_time = 60  # 1 hour max session
-        last_signal_check = datetime.now() - timedelta(minutes=5)
-        
-        while (datetime.now() - session_start).total_seconds() < max_session_time * 60:
-            try:
+            while iteration < max_iterations:
+                iteration += 1
                 current_time = datetime.now()
+                elapsed = current_time - start_time
                 
-                # Monitor existing positions every 30 seconds
-                self.monitor_positions()
+                logger.info(f"\n--- Trading Iteration {iteration} (Running for {elapsed}) ---")
                 
-                # Check for new signals every 3 minutes
-                if (current_time - last_signal_check).total_seconds() >= 180:
-                    last_signal_check = current_time
-                    
-                    # Limit concurrent trades
-                    active_count = len(self.active_trades)
-                    if active_count >= self.max_trades:
-                        logger.info(f"Max trades ({self.max_trades}) already active. Waiting...")
-                        time.sleep(30)
-                        continue
+                # Manage existing positions
+                self.manage_open_positions()
+                
+                # Check if we can open new positions
+                positions = self.get_open_positions()
+                if len(positions) >= self.max_positions:
+                    logger.info(f"Maximum positions ({self.max_positions}) reached. Managing existing positions...")
+                else:
+                    # Randomize symbol order to ensure fair analysis
+                    analysis_symbols = self.trading_symbols.copy()
+                    random.shuffle(analysis_symbols)
                     
                     # Look for trading opportunities
-                    for symbol in valid_symbols:
-                        if active_count >= self.max_trades:
+                    for symbol in analysis_symbols:
+                        if len(self.get_open_positions()) >= self.max_positions:
                             break
                         
-                        # Skip if already trading this symbol
-                        if any(trade['symbol'] == symbol for trade in self.active_trades.values()):
+                        logger.info(f"📊 Analyzing {symbol}...")
+                        
+                        # Get longer historical data for better backtesting
+                        hist_data = self.get_historical_data(symbol, "M5", 50)
+                        if not hist_data or len(hist_data) < 30:
+                            logger.warning(f"Insufficient historical data for {symbol}")
                             continue
                         
-                        try:
-                            # Get recent price data
-                            recent_data = self.api.get_historical_data(symbol, "M5", 50)  # 5-min data
-                            if not recent_data:
-                                continue
-                            
-                            prices = [candle['close'] for candle in recent_data]
-                            
-                            # Check for signals
-                            if self.strategy.should_buy(prices):
-                                logger.info(f"BUY signal for {symbol}")
-                                if self.execute_trade(symbol, 'buy'):
-                                    active_count += 1
-                            elif self.strategy.should_sell(prices):
-                                logger.info(f"SELL signal for {symbol}")
-                                if self.execute_trade(symbol, 'sell'):
-                                    active_count += 1
-                                    
-                        except Exception as e:
-                            logger.error(f"Error processing {symbol}: {e}")
+                        # Analyze market with multiple strategies
+                        signal = self.analyze_market(symbol, hist_data)
+                        if signal:
+                            # Place trade
+                            result = self.place_trade(symbol, signal)
+                            if result:
+                                time.sleep(3)  # Pause between trades
+                        
+                        time.sleep(2)  # Brief pause between symbol analysis
                 
-                # Wait before next iteration
-                time.sleep(30)  # Check every 30 seconds
+                # Adaptive wait time based on market activity
+                if len(positions) > 0:
+                    wait_time = 30  # Shorter wait when managing positions
+                else:
+                    wait_time = 60  # Longer wait when no positions
                 
-            except KeyboardInterrupt:
-                logger.info("Trading session interrupted by user")
-                break
-            except Exception as e:
-                logger.error(f"Error in trading loop: {e}")
-                time.sleep(60)
-        
-        logger.info("Trading session completed")
-        
-        # Close any remaining positions
-        try:
-            positions = self.api.get_positions()
-            for position in positions:
-                ticket = position.get('ticket')
-                self.api.close_position(ticket)
-                logger.info(f"Session end - closed position {ticket}")
+                logger.info(f"⏳ Waiting {wait_time} seconds before next analysis...")
+                time.sleep(wait_time)
+                
+        except KeyboardInterrupt:
+            logger.info("🛑 Trading session interrupted by user")
         except Exception as e:
-            logger.error(f"Error closing final positions: {e}")
+            logger.error(f"❌ Error in trading session: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+        finally:
+            # Final cleanup and reporting
+            logger.info("🔄 Session ending - managing final positions...")
+            
+            # Close any remaining positions
+            positions = self.get_open_positions()
+            for position in positions:
+                ticket = position['ticket']
+                symbol = position['symbol']
+                profit = position.get('profit', 0)
+                logger.info(f"Closing final position: {ticket} ({symbol}) - Current P&L: {profit:.2f}")
+                self.close_position(ticket)
+            
+            # Print performance summary
+            self.print_performance_summary()
+            
+            session_duration = datetime.now() - start_time
+            logger.info(f"✅ Enhanced trading session completed after {session_duration}")
+
+def main():
+    """Main function"""
+    logger.info("Initializing Enhanced MT5 Trading Bot...")
+    bot = MT5EnhancedBot()
+    bot.trading_session()
 
 if __name__ == "__main__":
-    trader = SimpleForexTrader()
-    trader.run_trading_session()
+    main()
