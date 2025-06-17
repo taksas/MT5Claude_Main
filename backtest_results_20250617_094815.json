@@ -1,0 +1,88 @@
+{
+  "backtest_timestamp": "2025-06-17T09:48:15.814746",
+  "summary_stats": {
+    "total_trades": 8,
+    "total_pnl": -447.1585714285182,
+    "winning_symbols": [
+      "EURUSD#",
+      "AUDUSD#"
+    ],
+    "losing_symbols": [
+      "GBPUSD#",
+      "USDJPY#",
+      "USDCAD#"
+    ]
+  },
+  "individual_results": {
+    "EURUSD#": {
+      "total_trades": 1,
+      "winning_trades": 1,
+      "losing_trades": 0,
+      "win_rate": 100.0,
+      "total_pnl": 281.7857142856983,
+      "total_pnl_pips": 28.178571428569832,
+      "max_drawdown": 0.0,
+      "avg_trade_duration": 30.0,
+      "avg_winning_trade": 281.7857142856983,
+      "avg_losing_trade": 0,
+      "profit_factor": Infinity,
+      "sharpe_ratio": 0
+    },
+    "GBPUSD#": {
+      "total_trades": 2,
+      "winning_trades": 0,
+      "losing_trades": 2,
+      "win_rate": 0.0,
+      "total_pnl": -398.40428571428356,
+      "total_pnl_pips": -59.1857142857144,
+      "max_drawdown": 3.984042857142831,
+      "avg_trade_duration": 10.0,
+      "avg_winning_trade": 0,
+      "avg_losing_trade": 199.20214285714178,
+      "profit_factor": 0.0,
+      "sharpe_ratio": -1438.3139627322953
+    },
+    "USDJPY#": {
+      "total_trades": 1,
+      "winning_trades": 0,
+      "losing_trades": 1,
+      "win_rate": 0.0,
+      "total_pnl": -128.6785714285088,
+      "total_pnl_pips": -0.1286785714285088,
+      "max_drawdown": 1.286785714285088,
+      "avg_trade_duration": 10.0,
+      "avg_winning_trade": 0,
+      "avg_losing_trade": 128.6785714285088,
+      "profit_factor": 0.0,
+      "sharpe_ratio": 0
+    },
+    "USDCAD#": {
+      "total_trades": 2,
+      "winning_trades": 0,
+      "losing_trades": 2,
+      "win_rate": 0.0,
+      "total_pnl": -396.42535714285157,
+      "total_pnl_pips": -62.5392857142848,
+      "max_drawdown": 3.964253571428526,
+      "avg_trade_duration": 17.5,
+      "avg_winning_trade": 0,
+      "avg_losing_trade": 198.21267857142578,
+      "profit_factor": 0.0,
+      "sharpe_ratio": -2964.9269495479502
+    },
+    "AUDUSD#": {
+      "total_trades": 2,
+      "winning_trades": 1,
+      "losing_trades": 1,
+      "win_rate": 50.0,
+      "total_pnl": 194.56392857142743,
+      "total_pnl_pips": 55.06071428571402,
+      "max_drawdown": 1.998716377523165,
+      "avg_trade_duration": 80.0,
+      "avg_winning_trade": 402.4799999999988,
+      "avg_losing_trade": 207.9160714285714,
+      "profit_factor": 1.9357810929890957,
+      "sharpe_ratio": 5.060004084550902
+    }
+  }
+}
