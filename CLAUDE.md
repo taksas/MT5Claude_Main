@@ -2,6 +2,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## General Instructions
+- Do not write a program that trades. That would be no different than an existing automated trading system. You must always think for yourself, check the latest charts, and make the best decisions.
 - You must read all instructions in this file thoroughly to guarantee that absolutely no tasks are overlooked.
 - When starting a new task, please be sure to check the latest CLAUDE.md.
 
