@@ -1,0 +1,21 @@
+[Unit]
+Description=24/7 Forex Trading Bot
+After=network.target
+
+[Service]
+Type=simple
+User=takumi
+WorkingDirectory=/home/takumi/MT5Claude_Main
+ExecStart=/usr/bin/python3 /home/takumi/MT5Claude_Main/live_trading_engine.py
+Restart=always
+RestartSec=60
+
+# Logging
+StandardOutput=append:/home/takumi/MT5Claude_Main/trading_bot.log
+StandardError=append:/home/takumi/MT5Claude_Main/trading_bot_error.log
+
+# Environment
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target

@@ -424,7 +424,9 @@ class EnhancedLiveTradingEngine:
         # Market scan parameters
         self.min_spread_ratio = 0.002  # Max 0.2% spread
         self.min_volatility = 0.0005  # Min 0.05% volatility
-        self.preferred_pairs = ["USDJPY#", "EURUSD#", "GBPUSD#", "AUDUSD#", "EURJPY#", "GBPJPY#"]
+        # Use actual tradable symbols from API
+        self.preferred_pairs = ["EURUSD#", "USDJPY#", "GBPUSD#", "EURJPY#", "AUDUSD#", 
+                               "GBPJPY#", "USDCAD#", "USDCHF#", "EURGBP#", "NZDUSD#"]
         
     def scan_best_symbols(self) -> List[str]:
         """Scan and select best symbols for trading"""
@@ -715,13 +717,12 @@ class EnhancedLiveTradingEngine:
     def _modify_position(self, ticket: int, sl: float, tp: float):
         """Modify an existing position"""
         modify_data = {
-            "ticket": ticket,
             "sl": sl,
             "tp": tp
         }
         
         try:
-            response = requests.put(f"{self.api_base}/trading/positions/{ticket}", json=modify_data)
+            response = requests.patch(f"{self.api_base}/trading/positions/{ticket}", json=modify_data)
             if response.status_code == 200:
                 logger.debug(f"Position {ticket} modified successfully")
             else:
