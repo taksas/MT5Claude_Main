@@ -162,98 +162,54 @@ class TradingVisualizer:
         
     def display_header(self):
         """Display header information"""
-        print("=" * 80)
-        print("                        ULTIMATE TRADING SYSTEM MONITOR")
-        print("=" * 80)
-        
-        # Display market summary
-        if self.display_data.strategy_signals:
-            total_symbols = len(self.display_data.strategy_signals)
-            buy_signals = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'BUY')
-            sell_signals = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'SELL')
-            high_quality = sum(1 for s in self.display_data.strategy_signals.values() if s.get('quality', 0) >= 0.6)
-            
-            print(f"\n📊 MARKET OVERVIEW: Monitoring {total_symbols} symbols")
-            print(f"   Buy Signals: {buy_signals} | Sell Signals: {sell_signals} | High Quality: {high_quality}")
-            print("-" * 80)
+        print("=" * 100)
+        print("                              ULTRA TRADING SYSTEM MONITOR")
+        print("=" * 100)
         
     def display_account(self):
-        """Display account information"""
-        print("\n📊 ACCOUNT STATUS")
-        print("-" * 40)
-        print(f"Balance:    {self.format_currency(self.display_data.balance)}")
-        print(f"Equity:     {self.format_currency(self.display_data.equity)}")
-        print(f"Floating:   {self.format_currency(self.display_data.profit)} "
-              f"({self.display_data.profit/self.display_data.balance*100:.2f}%)" if self.display_data.balance > 0 else "")
-        print(f"Daily P&L:  {self.format_currency(self.display_data.daily_pnl)} "
-              f"({self.display_data.daily_pnl/self.display_data.balance*100:.2f}%)" if self.display_data.balance > 0 else "")
+        """Display account information in compact format"""
+        print("\n💰 ACCOUNT: ", end="")
+        print(f"Balance: {self.format_currency(self.display_data.balance)} | "
+              f"Equity: {self.format_currency(self.display_data.equity)} | "
+              f"Floating: {self.format_currency(self.display_data.profit)} "
+              f"({self.display_data.profit/self.display_data.balance*100:+.1f}%) | " if self.display_data.balance > 0 else " | ", end="")
+        print(f"Daily: {self.format_currency(self.display_data.daily_pnl)} "
+              f"({self.display_data.daily_pnl/self.display_data.balance*100:+.1f}%)" if self.display_data.balance > 0 else "")
         
     def display_positions(self):
-        """Display open positions"""
-        print("\n📈 OPEN POSITIONS")
-        print("-" * 80)
-        
-        if not self.display_data.positions:
-            print("No open positions")
-        else:
-            print(f"{'Ticket':<10} {'Symbol':<10} {'Type':<6} {'Volume':<8} "
-                  f"{'Entry':<10} {'Current':<10} {'P&L':<12} {'Time':<8}")
-            print("-" * 80)
+        """Display open positions in compact format"""
+        if self.display_data.positions:
+            print(f"\n📈 POSITIONS ({len(self.display_data.positions)}): ", end="")
+            total_profit = sum(pos.get('profit', 0) for pos in self.display_data.positions)
             
-            for pos in self.display_data.positions:
-                ticket = pos['ticket']
-                symbol = pos['symbol']
-                type_str = "BUY" if pos['type'] == 0 else "SELL"
-                volume = pos['volume']
-                entry = pos['price_open']
-                current = pos['price_current']
+            # Show summary
+            for i, pos in enumerate(self.display_data.positions[:5]):  # Show first 5
+                symbol = pos['symbol'].replace('#', '')
+                type_icon = "🟢" if pos['type'] == 0 else "🔴"
                 profit = pos['profit']
+                profit_str = f"+{profit:.0f}" if profit > 0 else f"{profit:.0f}"
+                print(f"{type_icon}{symbol}:{profit_str}¥", end=" ")
                 
-                # Calculate time held
-                try:
-                    open_time = datetime.fromtimestamp(pos['time'])
-                    duration = datetime.now() - open_time
-                    time_str = f"{duration.seconds//60}m"
-                except:
-                    time_str = "N/A"
+            if len(self.display_data.positions) > 5:
+                print(f"(+{len(self.display_data.positions)-5} more)", end=" ")
                 
-                print(f"{ticket:<10} {symbol:<10} {type_str:<6} {volume:<8.2f} "
-                      f"{entry:<10.5f} {current:<10.5f} {self.format_currency(profit):<12} {time_str:<8}")
+            print(f"| Total: {self.format_currency(total_profit)}")
                       
     def display_closed_positions(self):
-        """Display closed positions from today"""
-        print("\n📉 CLOSED TODAY")
-        print("-" * 80)
-        
-        if not self.closed_positions:
-            print("No closed positions today")
-        else:
-            print(f"{'Symbol':<10} {'Type':<6} {'Volume':<8} {'Entry':<10} "
-                  f"{'Exit':<10} {'P&L':<12} {'Time':<12}")
-            print("-" * 80)
+        """Display closed positions summary"""
+        if self.closed_positions:
+            wins = sum(1 for t in self.closed_positions if t.get('profit', 0) > 0)
+            total_closed_pnl = sum(t.get('profit', 0) for t in self.closed_positions)
+            win_rate = wins / len(self.closed_positions) * 100 if self.closed_positions else 0
             
-            # Show last 5 closed positions
-            for trade in self.closed_positions[-5:]:
-                symbol = trade.get('symbol', 'N/A')
-                type_str = "BUY" if trade.get('type', 0) == 0 else "SELL"
-                volume = trade.get('volume', 0)
-                entry = trade.get('price', 0)
-                exit_price = trade.get('price', 0)  # This might need adjustment based on API
-                profit = trade.get('profit', 0)
-                
-                try:
-                    close_time = datetime.fromisoformat(trade['time_done'].replace('Z', '+00:00'))
-                    time_str = close_time.strftime("%H:%M:%S")
-                except:
-                    time_str = "N/A"
-                
-                print(f"{symbol:<10} {type_str:<6} {volume:<8.2f} {entry:<10.5f} "
-                      f"{exit_price:<10.5f} {self.format_currency(profit):<12} {time_str:<12}")
+            print(f"\n📊 CLOSED TODAY ({len(self.closed_positions)}): "
+                  f"Wins: {wins} | Win Rate: {win_rate:.0f}% | "
+                  f"P&L: {self.format_currency(total_closed_pnl)}")
                       
     def display_strategy_signals(self):
-        """Display strategy confidence levels"""
-        print("\n🎯 STRATEGY SIGNALS")
-        print("-" * 80)
+        """Display strategy confidence levels with expanded 2-line format per symbol"""
+        print("\n🎯 STRATEGY SIGNALS (EXPANDED VIEW)")
+        print("=" * 100)
         
         if not self.display_data.strategy_signals:
             print("Waiting for signals...")
@@ -262,60 +218,93 @@ class TradingVisualizer:
             sorted_symbols = sorted(self.display_data.strategy_signals.items(), 
                                   key=lambda x: x[1].get('confidence', 0), reverse=True)
             
-            # Display top signals first
-            displayed = 0
-            for symbol, data in sorted_symbols:
-                if displayed >= 10:  # Limit display to top 10 symbols
-                    break
-                    
+            # Display all symbols with stored signals
+            for idx, (symbol, data) in enumerate(sorted_symbols):
                 signal_type = data.get('type', 'NONE')
                 confidence = data.get('confidence', 0)
                 quality = data.get('quality', 0)
                 strategies = data.get('strategies', {})
                 reasons = data.get('reasons', [])
                 
-                # Only show symbols with meaningful signals
-                if signal_type != 'NONE' or confidence > 0.3:
-                    displayed += 1
+                # Skip very weak signals unless they're recent
+                if confidence < 0.1 and signal_type == 'NONE':
+                    continue
+                
+                # Symbol header with signal type
+                if signal_type == "BUY":
+                    signal_icon = "🟢"
+                    signal_color = "\033[92m"
+                elif signal_type == "SELL":
+                    signal_icon = "🔴"
+                    signal_color = "\033[91m"
+                else:
+                    signal_icon = "⚪"
+                    signal_color = "\033[90m"
+                
+                # Line 1: Symbol, Signal, Confidence, Quality, Main Reasons
+                print(f"\n{signal_icon} {signal_color}{symbol:<10}\033[0m Signal: {signal_color}{signal_type:<6}\033[0m "
+                      f"Conf: {confidence:>5.1%} | Qual: {quality:>5.1%} | {', '.join(reasons[:3]) if reasons else 'Analyzing...'}")
+                
+                # Line 2: All active indicators with their values
+                if strategies:
+                    # Collect all active indicators
+                    active_indicators = []
                     
-                    print(f"\n{symbol}:")
+                    # For Ultra engine with many indicators
+                    indicator_categories = {
+                        'PA': ['PriceAction', 'pin_bar', 'engulfing', 'hammer', 'doji'],
+                        'CP': ['ChartPatterns', 'double_top', 'double_bottom', 'triangle'],
+                        'MA': ['Trend', 'MACD', 'SMA', 'EMA'],
+                        'MO': ['RSI', 'Stochastic', 'Momentum', 'CCI', 'Williams'],
+                        'VO': ['Volume', 'MFI', 'OBV', 'Chaikin'],
+                        'ST': ['Structure', 'Support', 'Resistance', 'ADX'],
+                        'VL': ['Bollinger', 'ATR', 'Keltner', 'Volatility'],
+                        'TM': ['Time', 'Session', 'Pattern'],
+                        'MS': ['Statistical', 'ZScore', 'Divergence'],
+                        'IC': ['Ichimoku', 'Cloud']
+                    }
                     
-                    # Color coding for signals
-                    if signal_type == "BUY":
-                        signal_display = f"\033[92m{signal_type}\033[0m"  # Green
-                    elif signal_type == "SELL":
-                        signal_display = f"\033[91m{signal_type}\033[0m"  # Red
-                    else:
-                        signal_display = signal_type
+                    # Build indicator string
+                    for category, indicators in indicator_categories.items():
+                        for indicator in indicators:
+                            if indicator in strategies and strategies[indicator] > 0:
+                                score = strategies[indicator]
+                                if score >= 0.8:
+                                    active_indicators.append(f"{indicator}:{score:.0%}*")
+                                elif score >= 0.5:
+                                    active_indicators.append(f"{indicator}:{score:.0%}")
+                                else:
+                                    active_indicators.append(f"{indicator}:{score:.0%}")
                     
-                    # Display signal with quality
-                    print(f"  Signal: {signal_display} | Confidence: {confidence:.1%} | Quality: {quality:.1%}")
-                    if reasons:
-                        print(f"  Reasons: {', '.join(reasons[:3])}")
+                    # If no categorized indicators, show all
+                    if not active_indicators:
+                        for strat, score in strategies.items():
+                            if score > 0:
+                                active_indicators.append(f"{strat}:{score:.0%}")
                     
-                    # Display indicators as text
-                    if strategies:
-                        # Primary indicators
-                        primary = []
-                        for strat in ["Trend", "RSI", "MACD", "Stochastic", "Bollinger"]:
-                            if strat in strategies and strategies[strat] > 0:
-                                primary.append(f"{strat}:{strategies[strat]:.0%}")
-                        
-                        # Secondary indicators
-                        secondary = []
-                        for strat in ["ADX", "Structure", "Volume", "Momentum", "Divergence"]:
-                            if strat in strategies and strategies[strat] > 0:
-                                secondary.append(f"{strat}:{strategies[strat]:.0%}")
-                        
-                        if primary:
-                            print(f"  Primary: {' | '.join(primary)}")
-                        if secondary:
-                            print(f"  Secondary: {' | '.join(secondary)}")
-                            
-            # Show count of remaining symbols
+                    # Display indicators (limit to fit on screen)
+                    indicator_str = " | ".join(active_indicators[:12])
+                    if len(active_indicators) > 12:
+                        indicator_str += f" (+{len(active_indicators)-12} more)"
+                    
+                    print(f"   └─ Indicators: {indicator_str}")
+                else:
+                    print(f"   └─ Indicators: Calculating...")
+                
+                # Add separator every 5 symbols for readability
+                if (idx + 1) % 5 == 0:
+                    print("   " + "-" * 95)
+                    
+            # Summary footer
+            print("\n" + "=" * 100)
             total_symbols = len(self.display_data.strategy_signals)
-            if total_symbols > displayed:
-                print(f"\n  ... and {total_symbols - displayed} more symbols being monitored")
+            buy_count = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'BUY')
+            sell_count = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'SELL')
+            high_conf = sum(1 for s in self.display_data.strategy_signals.values() if s.get('confidence', 0) >= 0.5)
+            
+            print(f"📊 Summary: {total_symbols} symbols | "
+                  f"🟢 {buy_count} BUY | 🔴 {sell_count} SELL | "
+                  f"⭐ {high_conf} High Confidence (>50%)")
                         
     def display_footer(self):
         """Display footer information"""
