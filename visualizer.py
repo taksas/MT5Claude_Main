@@ -53,12 +53,8 @@ class TradingVisualizer:
         self.known_positions = set()
         self.closed_positions = []
         
-        # Initialize strategy signals for all symbols
-        self.display_data.strategy_signals = {
-            "EURUSD#": {"type": "WAITING", "confidence": 0, "strategies": {}},
-            "USDJPY#": {"type": "WAITING", "confidence": 0, "strategies": {}},
-            "GBPUSD#": {"type": "WAITING", "confidence": 0, "strategies": {}}
-        }
+        # Initialize strategy signals (will be populated dynamically)
+        self.display_data.strategy_signals = {}
         
     def clear_screen(self):
         """Clear terminal screen"""
@@ -170,6 +166,17 @@ class TradingVisualizer:
         print("                        ULTIMATE TRADING SYSTEM MONITOR")
         print("=" * 80)
         
+        # Display market summary
+        if self.display_data.strategy_signals:
+            total_symbols = len(self.display_data.strategy_signals)
+            buy_signals = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'BUY')
+            sell_signals = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'SELL')
+            high_quality = sum(1 for s in self.display_data.strategy_signals.values() if s.get('quality', 0) >= 0.6)
+            
+            print(f"\n📊 MARKET OVERVIEW: Monitoring {total_symbols} symbols")
+            print(f"   Buy Signals: {buy_signals} | Sell Signals: {sell_signals} | High Quality: {high_quality}")
+            print("-" * 80)
+        
     def display_account(self):
         """Display account information"""
         print("\n📊 ACCOUNT STATUS")
@@ -248,19 +255,28 @@ class TradingVisualizer:
         print("\n🎯 STRATEGY SIGNALS")
         print("-" * 80)
         
-        # Define the symbols we're monitoring
-        monitored_symbols = ["EURUSD#", "USDJPY#", "GBPUSD#"]
-        
         if not self.display_data.strategy_signals:
             print("Waiting for signals...")
         else:
-            for symbol in monitored_symbols:
-                if symbol in self.display_data.strategy_signals:
-                    data = self.display_data.strategy_signals[symbol]
-                    signal_type = data.get('type', 'NONE')
-                    confidence = data.get('confidence', 0)
-                    strategies = data.get('strategies', {})
-                    reasons = data.get('reasons', [])
+            # Sort symbols by confidence for better visibility
+            sorted_symbols = sorted(self.display_data.strategy_signals.items(), 
+                                  key=lambda x: x[1].get('confidence', 0), reverse=True)
+            
+            # Display top signals first
+            displayed = 0
+            for symbol, data in sorted_symbols:
+                if displayed >= 10:  # Limit display to top 10 symbols
+                    break
+                    
+                signal_type = data.get('type', 'NONE')
+                confidence = data.get('confidence', 0)
+                quality = data.get('quality', 0)
+                strategies = data.get('strategies', {})
+                reasons = data.get('reasons', [])
+                
+                # Only show symbols with meaningful signals
+                if signal_type != 'NONE' or confidence > 0.3:
+                    displayed += 1
                     
                     print(f"\n{symbol}:")
                     
@@ -272,21 +288,34 @@ class TradingVisualizer:
                     else:
                         signal_display = signal_type
                     
-                    print(f"  Signal: {signal_display} ({confidence:.1%} confidence)")
+                    # Display signal with quality
+                    print(f"  Signal: {signal_display} | Confidence: {confidence:.1%} | Quality: {quality:.1%}")
                     if reasons:
                         print(f"  Reasons: {', '.join(reasons[:3])}")
                     
-                    # Display individual strategy scores with bars
+                    # Display indicators as text
                     if strategies:
-                        print("  Strategy Breakdown:")
-                        for strategy, score in strategies.items():
-                            bar = "█" * int(score * 10)
-                            print(f"    {strategy:<15} [{bar:<10}] {score:.1%}")
-                else:
-                    print(f"\n{symbol}:")
-                    print(f"  Signal: WAITING")
-                    print(f"  Strategy Breakdown:")
-                    print(f"    No data available yet...")
+                        # Primary indicators
+                        primary = []
+                        for strat in ["Trend", "RSI", "MACD", "Stochastic", "Bollinger"]:
+                            if strat in strategies and strategies[strat] > 0:
+                                primary.append(f"{strat}:{strategies[strat]:.0%}")
+                        
+                        # Secondary indicators
+                        secondary = []
+                        for strat in ["ADX", "Structure", "Volume", "Momentum", "Divergence"]:
+                            if strat in strategies and strategies[strat] > 0:
+                                secondary.append(f"{strat}:{strategies[strat]:.0%}")
+                        
+                        if primary:
+                            print(f"  Primary: {' | '.join(primary)}")
+                        if secondary:
+                            print(f"  Secondary: {' | '.join(secondary)}")
+                            
+            # Show count of remaining symbols
+            total_symbols = len(self.display_data.strategy_signals)
+            if total_symbols > displayed:
+                print(f"\n  ... and {total_symbols - displayed} more symbols being monitored")
                         
     def display_footer(self):
         """Display footer information"""

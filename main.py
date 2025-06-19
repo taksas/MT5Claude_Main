@@ -11,7 +11,7 @@ import queue
 from multiprocessing import Process, Queue
 import signal
 
-from trading_engine import TradingEngine
+from ultra_trading_engine import UltraTradingEngine
 from visualizer import TradingVisualizer
 
 # Configure logging
@@ -34,8 +34,8 @@ class TradingSystem:
         self.shutdown = False
         
     def run_engine(self, signal_queue):
-        """Run trading engine in separate process"""
-        engine = TradingEngine(signal_queue)
+        """Run ultra trading engine in separate process"""
+        engine = UltraTradingEngine(signal_queue)
         try:
             engine.start()
         except KeyboardInterrupt:
