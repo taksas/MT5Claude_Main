@@ -254,42 +254,39 @@ class TradingVisualizer:
         if not self.display_data.strategy_signals:
             print("Waiting for signals...")
         else:
-            # Display in a compact format for all symbols
-            print(f"{'Symbol':<10} {'Signal':<10} {'Conf':<8} {'Trend':<8} {'RSI':<8} {'BB':<8} {'Mom':<8} {'Vol':<8}")
-            print("-" * 80)
-            
             for symbol in monitored_symbols:
                 if symbol in self.display_data.strategy_signals:
                     data = self.display_data.strategy_signals[symbol]
                     signal_type = data.get('type', 'NONE')
                     confidence = data.get('confidence', 0)
                     strategies = data.get('strategies', {})
-                    
-                    # Format each strategy score
-                    trend = f"{strategies.get('Trend', 0):.0%}"
-                    rsi = f"{strategies.get('RSI', 0):.0%}"
-                    bb = f"{strategies.get('Bollinger', 0):.0%}"
-                    mom = f"{strategies.get('Momentum', 0):.0%}"
-                    vol = f"{strategies.get('Volume', 0):.0%}"
-                    
-                    # Color coding for signals (terminal colors)
-                    if signal_type == "BUY":
-                        signal_display = f"\033[92m{signal_type:<10}\033[0m"  # Green
-                    elif signal_type == "SELL":
-                        signal_display = f"\033[91m{signal_type:<10}\033[0m"  # Red
-                    else:
-                        signal_display = f"{signal_type:<10}"
-                    
-                    print(f"{symbol:<10} {signal_display} {confidence:<8.1%} {trend:<8} {rsi:<8} {bb:<8} {mom:<8} {vol:<8}")
-                else:
-                    print(f"{symbol:<10} {'-':<10} {'-':<8} {'-':<8} {'-':<8} {'-':<8} {'-':<8} {'-':<8}")
-                    
-            # Show detailed reasons for high confidence signals
-            print("\n📊 Active Signals:")
-            for symbol, data in self.display_data.strategy_signals.items():
-                if data.get('confidence', 0) >= 0.6 and data.get('type') != 'NONE':
                     reasons = data.get('reasons', [])
-                    print(f"  {symbol}: {data.get('type')} - {', '.join(reasons[:3])}")
+                    
+                    print(f"\n{symbol}:")
+                    
+                    # Color coding for signals
+                    if signal_type == "BUY":
+                        signal_display = f"\033[92m{signal_type}\033[0m"  # Green
+                    elif signal_type == "SELL":
+                        signal_display = f"\033[91m{signal_type}\033[0m"  # Red
+                    else:
+                        signal_display = signal_type
+                    
+                    print(f"  Signal: {signal_display} ({confidence:.1%} confidence)")
+                    if reasons:
+                        print(f"  Reasons: {', '.join(reasons[:3])}")
+                    
+                    # Display individual strategy scores with bars
+                    if strategies:
+                        print("  Strategy Breakdown:")
+                        for strategy, score in strategies.items():
+                            bar = "█" * int(score * 10)
+                            print(f"    {strategy:<15} [{bar:<10}] {score:.1%}")
+                else:
+                    print(f"\n{symbol}:")
+                    print(f"  Signal: WAITING")
+                    print(f"  Strategy Breakdown:")
+                    print(f"    No data available yet...")
                         
     def display_footer(self):
         """Display footer information"""
