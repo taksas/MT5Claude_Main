@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Ultimate Trading Engine - Compressed and Optimized
-Combines all learnings into one focused system
+Trading Engine - Core trading logic separated from visualization
 """
 
 import requests
@@ -19,13 +18,14 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 import os
 from urllib.parse import quote
+import queue
 
 # Logging configuration
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('TradingEngine')
 
 # Configuration
 CONFIG = {
@@ -39,7 +39,8 @@ CONFIG = {
     "MAX_DAILY_LOSS": 0.03,
     "MAX_CONCURRENT": 2,
     "MIN_RR_RATIO": 1.5,
-    "TIMEZONE": "Asia/Tokyo"
+    "TIMEZONE": "Asia/Tokyo",
+    "ACCOUNT_CURRENCY": "JPY"
 }
 
 class SignalType(Enum):
@@ -54,6 +55,7 @@ class Signal:
     sl: float
     tp: float
     reason: str
+    strategies: Dict[str, float] = None
 
 @dataclass 
 class Trade:
@@ -66,11 +68,14 @@ class Trade:
     volume: float
     entry_time: datetime
 
-class UltimateTradingEngine:
-    def __init__(self):
+class TradingEngine:
+    def __init__(self, signal_queue: Optional[queue.Queue] = None):
         self.config = CONFIG
         self.api_base = CONFIG["API_BASE"]
         self.timezone = pytz.timezone(CONFIG["TIMEZONE"])
+        
+        # Communication queue for visualizer
+        self.signal_queue = signal_queue
         
         # State
         self.active_trades = {}
@@ -84,6 +89,12 @@ class UltimateTradingEngine:
         self.spread_cache = {}
         self.data_cache = {}
         
+        # JPY account settings
+        self.account_currency = CONFIG["ACCOUNT_CURRENCY"]
+        
+        # Strategy tracking
+        self.last_signals = {}
+        
     def start(self):
         """Initialize and start trading"""
         if not self._check_connection():
@@ -95,8 +106,8 @@ class UltimateTradingEngine:
             logger.error("Cannot get account balance")
             return False
             
-        logger.info(f"Starting Ultimate Trading Engine")
-        logger.info(f"Balance: ${self.balance:.2f}")
+        logger.info(f"Starting Trading Engine")
+        logger.info(f"Balance: ¥{self.balance:,.0f}")
         logger.info(f"Symbols: {CONFIG['SYMBOLS']}")
         
         self.running = True
@@ -119,6 +130,19 @@ class UltimateTradingEngine:
         except:
             pass
         return None
+        
+    def _calculate_position_size(self, symbol: str, sl_distance: float) -> float:
+        """Calculate position size based on JPY account and risk"""
+        # For JPY account, we need to consider pip values
+        # EURUSD: 1 pip = ~150 JPY per 0.01 lot (depends on USDJPY rate)
+        # USDJPY: 1 pip = 10 JPY per 0.01 lot
+        # GBPUSD: 1 pip = ~180 JPY per 0.01 lot (depends on USDJPY rate)
+        
+        risk_amount = self.balance * CONFIG["RISK_PER_TRADE"]
+        
+        # Fixed position size for now - can be enhanced with dynamic calculation
+        # This keeps risk consistent across all pairs
+        return 0.01
         
     def _get_market_data(self, symbol: str) -> Optional[pd.DataFrame]:
         """Get cached market data"""
@@ -167,7 +191,7 @@ class UltimateTradingEngine:
         return False, 999
         
     def _analyze(self, symbol: str, df: pd.DataFrame) -> Optional[Signal]:
-        """Analyze market and generate signal"""
+        """Analyze market and generate signal with strategy breakdown"""
         if len(df) < 30:
             return None
             
@@ -199,7 +223,15 @@ class UltimateTradingEngine:
         tr = np.maximum(high - low, np.maximum(abs(high - close), abs(low - close)))
         atr = np.mean(tr[-14:])
         
-        # Strategy signals
+        # Strategy signals with individual scoring
+        strategies = {
+            "Trend": 0,
+            "RSI": 0,
+            "Bollinger": 0,
+            "Momentum": 0,
+            "Volume": 0
+        }
+        
         buy_signals = 0
         sell_signals = 0
         reasons = []
@@ -207,44 +239,65 @@ class UltimateTradingEngine:
         # 1. Trend
         if sma_fast > sma_slow and current > sma_fast:
             buy_signals += 1
+            strategies["Trend"] = 1.0
             reasons.append("Uptrend")
         elif sma_fast < sma_slow and current < sma_fast:
             sell_signals += 1
+            strategies["Trend"] = -1.0
             reasons.append("Downtrend")
             
         # 2. RSI
         if 30 < rsi < 40:
             buy_signals += 1
+            strategies["RSI"] = (40 - rsi) / 10  # Stronger signal closer to 30
             reasons.append(f"RSI {rsi:.0f}")
         elif 60 < rsi < 70:
             sell_signals += 1
+            strategies["RSI"] = -(rsi - 60) / 10  # Stronger signal closer to 70
             reasons.append(f"RSI {rsi:.0f}")
             
         # 3. Bollinger Bands
         if current <= bb_lower:
             buy_signals += 1
+            strategies["Bollinger"] = min((bb_lower - current) / bb_std, 1.0)
             reasons.append("BB Low")
         elif current >= bb_upper:
             sell_signals += 1
+            strategies["Bollinger"] = -min((current - bb_upper) / bb_std, 1.0)
             reasons.append("BB High")
             
         # 4. Momentum
         momentum = (current - close[-10]) / close[-10]
         if momentum > 0.001:
             buy_signals += 1
+            strategies["Momentum"] = min(momentum * 100, 1.0)
             reasons.append("Momentum+")
         elif momentum < -0.001:
             sell_signals += 1
+            strategies["Momentum"] = max(momentum * 100, -1.0)
             reasons.append("Momentum-")
             
         # 5. Volume
-        if volume[-1] > np.mean(volume) * 1.3:
+        vol_ratio = volume[-1] / np.mean(volume)
+        if vol_ratio > 1.3:
             if close[-1] > close[-2]:
                 buy_signals += 1
+                strategies["Volume"] = min((vol_ratio - 1) / 2, 1.0)
                 reasons.append("Volume+")
             else:
                 sell_signals += 1
+                strategies["Volume"] = -min((vol_ratio - 1) / 2, 1.0)
                 reasons.append("Volume-")
+                
+        # Normalize strategy scores to 0-1 range for display
+        display_strategies = {}
+        for name, score in strategies.items():
+            if score > 0:
+                display_strategies[name] = score
+            elif score < 0:
+                display_strategies[name] = abs(score)
+            else:
+                display_strategies[name] = 0
                 
         # Decision
         total = 5
@@ -255,6 +308,19 @@ class UltimateTradingEngine:
             signal_type = SignalType.SELL
             confidence = sell_signals / total
         else:
+            # Send signal data to visualizer even if no trade
+            if self.signal_queue:
+                try:
+                    self.signal_queue.put({
+                        symbol: {
+                            'type': 'NONE',
+                            'confidence': max(buy_signals, sell_signals) / total,
+                            'strategies': display_strategies,
+                            'reasons': reasons[:2]
+                        }
+                    })
+                except:
+                    pass
             return None
             
         if confidence < CONFIG["MIN_CONFIDENCE"]:
@@ -271,14 +337,31 @@ class UltimateTradingEngine:
             sl = current + sl_distance
             tp = current - tp_distance
             
-        return Signal(
+        signal = Signal(
             type=signal_type,
             confidence=confidence,
             entry=current,
             sl=round(sl, 5),
             tp=round(tp, 5),
-            reason=" | ".join(reasons[:2])
+            reason=" | ".join(reasons[:2]),
+            strategies=display_strategies
         )
+        
+        # Send signal to visualizer
+        if self.signal_queue:
+            try:
+                self.signal_queue.put({
+                    symbol: {
+                        'type': signal_type.value,
+                        'confidence': confidence,
+                        'strategies': display_strategies,
+                        'reasons': reasons[:3]
+                    }
+                })
+            except:
+                pass
+                
+        return signal
         
     def _can_trade(self) -> bool:
         """Check if we can place new trade"""
@@ -303,10 +386,14 @@ class UltimateTradingEngine:
         
     def _place_order(self, symbol: str, signal: Signal) -> bool:
         """Place order"""
+        # Calculate position size
+        sl_distance = abs(signal.entry - signal.sl)
+        volume = self._calculate_position_size(symbol, sl_distance)
+        
         order = {
             "action": 1,
             "symbol": symbol,
-            "volume": 0.01,
+            "volume": volume,
             "type": 0 if signal.type == SignalType.BUY else 1,
             "sl": signal.sl,
             "tp": signal.tp,
@@ -327,7 +414,7 @@ class UltimateTradingEngine:
                     entry_price=result.get('price', signal.entry),
                     sl=signal.sl,
                     tp=signal.tp,
-                    volume=0.01,
+                    volume=volume,
                     entry_time=datetime.now()
                 )
                 
@@ -368,9 +455,9 @@ class UltimateTradingEngine:
                 profit = pos.get('profit', 0)
                 duration = (datetime.now() - trade.entry_time).seconds
                 
-                # Take profit early
-                if profit > 15:
-                    logger.info(f"Taking profit: {ticket} +${profit:.2f}")
+                # Take profit early (1500 JPY)
+                if profit > 1500:
+                    logger.info(f"Taking profit: {ticket} +¥{profit:,.0f}")
                     self._close_position(ticket)
                     
                 # Time exit
@@ -378,8 +465,8 @@ class UltimateTradingEngine:
                     logger.info(f"Time exit: {ticket}")
                     self._close_position(ticket)
                     
-                # Breakeven
-                elif profit > 5 and duration > 300:
+                # Breakeven (500 JPY)
+                elif profit > 500 and duration > 300:
                     self._move_breakeven(ticket, trade)
                     
         except Exception as e:
@@ -431,24 +518,24 @@ class UltimateTradingEngine:
                 # Manage positions
                 self._manage_positions()
                 
-                # Look for trades
-                if self._can_trade():
-                    for symbol in CONFIG["SYMBOLS"]:
-                        # Check spread
-                        spread_ok, spread = self._check_spread(symbol)
-                        if not spread_ok:
-                            continue
-                            
-                        # Get data
-                        df = self._get_market_data(symbol)
-                        if df is None:
-                            continue
-                            
-                        # Analyze
-                        signal = self._analyze(symbol, df)
-                        if signal:
-                            if self._place_order(symbol, signal):
-                                break
+                # Always analyze all symbols for visualization
+                can_trade = self._can_trade()
+                for symbol in CONFIG["SYMBOLS"]:
+                    # Check spread
+                    spread_ok, spread = self._check_spread(symbol)
+                    
+                    # Get data
+                    df = self._get_market_data(symbol)
+                    if df is None:
+                        continue
+                        
+                    # Analyze (this will send signals to visualizer)
+                    signal = self._analyze(symbol, df)
+                    
+                    # Only place orders if we can trade
+                    if can_trade and signal and spread_ok:
+                        if self._place_order(symbol, signal):
+                            break
                                 
                 # Status
                 if cycle % 40 == 0:
@@ -462,10 +549,21 @@ class UltimateTradingEngine:
             logger.error(f"Fatal error: {e}")
         finally:
             self.running = False
+            
+    def stop(self):
+        """Stop the trading engine"""
+        self.running = False
+        logger.info("Stopping Trading Engine")
 
 def main():
-    engine = UltimateTradingEngine()
-    engine.start()
+    """Run standalone engine"""
+    engine = TradingEngine()
+    try:
+        engine.start()
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+    finally:
+        engine.stop()
 
 if __name__ == "__main__":
     main()
