@@ -37,24 +37,39 @@ CONFIG = {
     "API_BASE": "http://172.28.144.1:8000",
     "SYMBOLS": [],  # Will be populated dynamically
     "TIMEFRAME": "M5",
-    "MIN_CONFIDENCE": 0.10,  # EXTREMELY LOW - 10% minimum
-    "MIN_QUALITY": 0.0,      # NO quality threshold
-    "MIN_STRATEGIES": 3,     # Only 3 out of 100 needed!
-    "MAX_SPREAD_PIPS": 10.0, # Allow ANY spread
-    "RISK_PER_TRADE": 0.02,  # 2% risk for aggressive
-    "MAX_DAILY_LOSS": 0.20,  # 20% max daily loss
-    "MAX_CONCURRENT": 20,    # Even more positions
-    "MIN_RR_RATIO": 0.5,     # 0.5:1 RR - accept bad RR
+    "MIN_CONFIDENCE": 0.30,  # 30% minimum confidence
+    "MIN_QUALITY": 0.25,     # 25% quality threshold
+    "MIN_STRATEGIES": 10,    # At least 10 strategies must agree
+    "MAX_SPREAD_PIPS": 3.0,  # Maximum 3 pips spread for majors
+    "MAX_SPREAD_EXOTIC": 15.0,  # Maximum 15 pips for exotic pairs
+    "RISK_PER_TRADE": 0.01,  # 1% risk per trade
+    "RISK_PER_EXOTIC": 0.005,  # 0.5% risk for exotic pairs
+    "MAX_DAILY_LOSS": 0.05,  # 5% max daily loss
+    "MAX_CONCURRENT": 5,     # Maximum 5 concurrent positions (increased for diversification)
+    "MIN_RR_RATIO": 1.5,     # 1.5:1 minimum risk-reward ratio
+    "MIN_RR_EXOTIC": 2.0,    # 2:1 for exotic pairs due to wider spreads
     "TIMEZONE": "Asia/Tokyo",
     "ACCOUNT_CURRENCY": "JPY",
     "SYMBOL_FILTER": "FOREX",
     "MIN_VOLUME": 0.01,
-    "AGGRESSIVE_MODE": True,
-    "POSITION_INTERVAL": 60,   # 1 minute between trades per symbol!
-    "MAX_SYMBOLS": 30,         # Trade more symbols
+    "AGGRESSIVE_MODE": False,
+    "POSITION_INTERVAL": 600,   # 10 minutes between trades per symbol
+    "MAX_SYMBOLS": 15,         # Increased to include exotic pairs
     "FORCE_TRADE_INTERVAL": 600,  # Force a trade if none in 10 minutes
-    "IGNORE_SPREAD": True,     # Trade regardless of spread
-    "MIN_INDICATORS": 1,       # Even 1 indicator is enough
+    "IGNORE_SPREAD": False,    # Check spread before trading
+    "MIN_INDICATORS": 5,       # At least 5 indicators must be positive
+    "EXOTIC_CURRENCIES": ['TRY', 'ZAR', 'MXN', 'PLN', 'HUF', 'SEK', 'NOK', 'DKK', 
+                         'SGD', 'HKD', 'THB', 'CNH', 'RUB', 'BRL', 'INR', 'KRW',
+                         'ILS', 'AED', 'SAR', 'PHP', 'IDR', 'MYR', 'CZK', 'RON'],
+    "METAL_SYMBOLS": ['XAU', 'XAG', 'XPT', 'XPD'],
+    "CRYPTO_SYMBOLS": ['BTC', 'ETH', 'LTC', 'XRP', 'DOGE', 'ADA', 'DOT'],
+    "INDEX_SYMBOLS": ['US30', 'USTEC', 'NAS100', 'GER40', 'DAX', 'US500', 'UK100', 'JP225'],
+    "MAX_SPREAD_METAL": 30.0,  # Gold can have 30 pip spreads
+    "MAX_SPREAD_CRYPTO": 50.0,  # Crypto can have very wide spreads
+    "MAX_SPREAD_INDEX": 5.0,   # Indices usually 3-5 points
+    "RISK_PER_METAL": 0.007,  # 0.7% risk for metals
+    "RISK_PER_CRYPTO": 0.003,  # 0.3% risk for crypto due to extreme volatility
+    "RISK_PER_INDEX": 0.008,  # 0.8% risk for indices (high profit potential)
 }
 
 class SignalType(Enum):
@@ -140,13 +155,13 @@ class UltraTradingEngine:
             logger.error("No tradable symbols found")
             return False
             
-        logger.info(f"🚀 Starting ULTRA Trading Engine - HYPER AGGRESSIVE MODE")
+        logger.info(f"🚀 Starting Safe Trading Engine")
         logger.info(f"💰 Balance: ¥{self.balance:,.0f}")
         logger.info(f"📊 Trading {len(self.tradable_symbols)} symbols: {self.tradable_symbols[:5]}...")
-        logger.info(f"⚡ Target: Position every {CONFIG['POSITION_INTERVAL']/60:.0f} minutes")
-        logger.info(f"🎯 Thresholds: Min Conf={CONFIG['MIN_CONFIDENCE']}, Min Indicators={CONFIG.get('MIN_INDICATORS', 1)}")
-        logger.info(f"⚠️  FORCE TRADE after {CONFIG.get('FORCE_TRADE_INTERVAL', 600)/60:.0f} minutes of inactivity")
-        logger.info(f"🔥 Spread check: {'DISABLED' if CONFIG.get('IGNORE_SPREAD') else 'ENABLED'}")
+        logger.info(f"⏱️  Position interval: {CONFIG['POSITION_INTERVAL']/60:.0f} minutes per symbol")
+        logger.info(f"🎯 Requirements: Min Conf={CONFIG['MIN_CONFIDENCE']}, Min Strategies={CONFIG['MIN_STRATEGIES']}")
+        logger.info(f"🛡️  Risk: {CONFIG['RISK_PER_TRADE']*100}% per trade, Max daily loss: {CONFIG['MAX_DAILY_LOSS']*100}%")
+        logger.info(f"📏 Max spread: {CONFIG['MAX_SPREAD_PIPS']} pips, Max concurrent: {CONFIG['MAX_CONCURRENT']}")
         
         self.running = True
         self._run_loop()
@@ -170,47 +185,197 @@ class UltraTradingEngine:
         return None
         
     def _discover_symbols(self) -> List[str]:
-        """Discover all tradable forex symbols"""
+        """Discover all tradable forex symbols including exotic pairs"""
         try:
             resp = requests.get(f"{self.api_base}/market/symbols", timeout=10)
             if resp.status_code == 200:
                 all_symbols = resp.json()
                 
-                # Filter for forex pairs
+                # Extended currency list including exotic pairs
+                major_currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD']
+                exotic_currencies = ['TRY', 'ZAR', 'MXN', 'PLN', 'HUF', 'SEK', 'NOK', 'DKK', 
+                                   'SGD', 'HKD', 'THB', 'CNH', 'RUB', 'BRL', 'INR', 'KRW',
+                                   'ILS', 'AED', 'SAR', 'PHP', 'IDR', 'MYR', 'CZK', 'RON']
+                # Precious metals and crypto symbols
+                metals_crypto = ['XAU', 'XAG', 'XPT', 'XPD', 'BTC', 'ETH', 'LTC', 'XRP']
+                # Major indices - HIGH PROFIT POTENTIAL (60-85% annual returns)
+                index_symbols = ['US30', 'USTEC', 'NAS100', 'GER40', 'DAX', 'US500', 'UK100', 'JP225']
+                all_currencies = major_currencies + exotic_currencies + metals_crypto
+                
+                # Filter for forex pairs and indices
                 forex_symbols = []
+                exotic_pairs = []
+                metal_pairs = []
+                crypto_pairs = []
+                index_pairs = []
+                ultra_exotic_crosses = []
+                
                 for symbol in all_symbols:
                     name = symbol.get('name', '')
                     
-                    # Check if it's a forex pair
-                    if any(curr in name for curr in ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD']):
-                        # Check if it's tradable
-                        if symbol.get('trade_mode', 0) > 0:
-                            # Check minimum volume
-                            min_vol = symbol.get('volume_min', 0)
-                            if min_vol <= CONFIG["MIN_VOLUME"]:
+                    # Check if it's a tradable symbol
+                    if symbol.get('trade_mode', 0) > 0:
+                        # Check minimum volume
+                        min_vol = symbol.get('volume_min', 0)
+                        if min_vol <= CONFIG["MIN_VOLUME"]:
+                            # Categorize by type
+                            if any(metal in name for metal in ['XAU', 'XAG', 'XPT', 'XPD']):
+                                metal_pairs.append(name)
+                            elif any(crypto in name for crypto in ['BTC', 'ETH', 'LTC', 'XRP']):
+                                crypto_pairs.append(name)
+                            elif any(index in name for index in index_symbols):
+                                index_pairs.append(name)
+                            elif any(exotic in name for exotic in exotic_currencies):
+                                # Check for ultra-exotic crosses
+                                exotic_count = sum(1 for e in exotic_currencies if e in name)
+                                if exotic_count >= 2:
+                                    ultra_exotic_crosses.append(name)
+                                else:
+                                    exotic_pairs.append(name)
+                            elif any(curr in name for curr in major_currencies):
                                 forex_symbols.append(name)
-                                
-                logger.info(f"Discovered {len(forex_symbols)} tradable forex pairs")
-                return forex_symbols[:CONFIG["MAX_SYMBOLS"]]
+                
+                # Prioritize mix of all instrument types
+                combined_symbols = []
+                
+                # Add core major pairs (20% allocation)
+                major_pairs = ["EURUSD", "USDJPY", "GBPUSD"]
+                for pair in major_pairs:
+                    matching = [s for s in forex_symbols if pair in s]
+                    combined_symbols.extend(matching[:1])
+                
+                # Add precious metals (25% allocation) - HIGHEST PROFIT POTENTIAL
+                priority_metals = ["XAUUSD", "XAGUSD", "XAUEUR", "XAUJPY"]
+                for pair in priority_metals:
+                    matching = [s for s in metal_pairs if pair in s]
+                    combined_symbols.extend(matching[:1])
+                
+                # Add high-profit exotic pairs (20% allocation) - 200-500 pip daily ranges
+                priority_exotics = ["USDZAR", "USDMXN", "USDTRY", "EURTRY", "USDPLN"]
+                for pair in priority_exotics:
+                    matching = [s for s in exotic_pairs if pair in s]
+                    combined_symbols.extend(matching[:1])
+                
+                # Add high-profit indices (20% allocation) - 60-85% annual returns
+                priority_indices = ["US30", "USTEC", "NAS100", "GER40", "DAX"]
+                for pair in priority_indices:
+                    matching = [s for s in index_pairs if pair in s]
+                    combined_symbols.extend(matching[:1])
+                
+                # Add cross-currency mean reversion pairs (10% allocation)
+                cross_pairs = ["EURGBP", "AUDNZD", "EURCHF", "GBPJPY", "EURNOK"]
+                for pair in cross_pairs:
+                    matching = [s for s in forex_symbols if pair in s]
+                    combined_symbols.extend(matching[:1])
+                
+                # Add crypto pairs if available (10% allocation)
+                priority_crypto = ["BTCUSD", "ETHUSD"]
+                for pair in priority_crypto:
+                    matching = [s for s in crypto_pairs if pair in s]
+                    combined_symbols.extend(matching[:1])
+                
+                # Add ultra-exotic crosses if found (10% allocation)
+                combined_symbols.extend(ultra_exotic_crosses[:2])
+                
+                # Fill remaining slots with diverse selection
+                remaining_slots = CONFIG["MAX_SYMBOLS"] - len(combined_symbols)
+                if remaining_slots > 0:
+                    # Mix of everything not yet included
+                    all_remaining = [s for s in (forex_symbols + exotic_pairs + metal_pairs + crypto_pairs) 
+                                   if s not in combined_symbols]
+                    combined_symbols.extend(all_remaining[:remaining_slots])
+                
+                logger.info(f"Discovered diverse portfolio: {len(forex_symbols)} forex, {len(exotic_pairs)} exotic, "
+                          f"{len(metal_pairs)} metals, {len(crypto_pairs)} crypto, {len(index_pairs)} indices, "
+                          f"{len(ultra_exotic_crosses)} ultra-exotic crosses")
+                logger.info(f"Selected {len(combined_symbols)} symbols for trading")
+                return combined_symbols[:CONFIG["MAX_SYMBOLS"]]
                 
         except Exception as e:
             logger.error(f"Failed to discover symbols: {e}")
             
-        # Fallback to default symbols
-        return ["EURUSD#", "USDJPY#", "GBPUSD#", "USDCHF#", "AUDUSD#", "USDCAD#", 
-                "NZDUSD#", "EURJPY#", "GBPJPY#", "EURGBP#", "EURAUD#", "EURCAD#",
-                "GBPAUD#", "GBPCAD#", "AUDJPY#"]
+        # Enhanced fallback with high-profit symbols
+        return ["EURUSD#", "USDJPY#", "GBPUSD#", "XAUUSD#", "XAGUSD#", "US30#",
+                "USTEC#", "GER40#", "USDZAR#", "USDMXN#", "EURGBP#", "AUDNZD#",
+                "GBPJPY#", "EURTRY#", "USDPLN#"]
         
     def _calculate_position_size(self, symbol: str, sl_distance: float) -> float:
-        """Calculate ULTRA aggressive position size"""
-        risk_amount = self.balance * CONFIG["RISK_PER_TRADE"]
+        """Calculate safe position size based on risk management"""
+        # Get current account status
+        account_status = self._check_account_safety()
+        equity = account_status.get('equity', self.balance)
+        free_margin = account_status.get('free_margin', equity)
         
-        # ULTRA Aggressive sizing
-        if CONFIG["AGGRESSIVE_MODE"]:
-            # Random size between 0.01 and 0.05 for variety
-            import random
-            return round(random.uniform(0.01, 0.05), 2)
-        return 0.01
+        # Use equity for risk calculation, not balance
+        # Different risk levels per instrument type
+        instrument_type = self._get_instrument_type(symbol)
+        risk_map = {
+            "crypto": CONFIG["RISK_PER_CRYPTO"],
+            "metal": CONFIG["RISK_PER_METAL"],
+            "index": CONFIG["RISK_PER_INDEX"],
+            "exotic": CONFIG["RISK_PER_EXOTIC"],
+            "major": CONFIG["RISK_PER_TRADE"]
+        }
+        risk_per_trade = risk_map.get(instrument_type, CONFIG["RISK_PER_TRADE"])
+        risk_amount = equity * risk_per_trade
+        
+        # Get symbol info for proper pip calculation
+        symbol_info = self._get_symbol_info(symbol)
+        if not symbol_info:
+            return 0.01  # Minimum lot size as fallback
+            
+        # Calculate position size based on risk
+        pip_value = 0.01 if "JPY" in symbol else 0.0001
+        sl_pips = sl_distance / pip_value
+        
+        # For JPY account, adjust calculation
+        if self.account_currency == "JPY":
+            if "JPY" in symbol:
+                # Direct JPY pair
+                position_size = risk_amount / (sl_pips * 100)
+            else:
+                # Need to convert through USD/JPY rate
+                usd_jpy_rate = self._get_current_price("USDJPY#")
+                if usd_jpy_rate:
+                    position_size = risk_amount / (sl_pips * 10 * usd_jpy_rate)
+                else:
+                    position_size = 0.01
+        else:
+            position_size = risk_amount / (sl_pips * 10)
+            
+        # Safety checks
+        max_size = free_margin * 0.1 / 100000  # Max 10% of free margin
+        position_size = min(position_size, max_size, 0.1)  # Cap at 0.1 lots
+        position_size = max(position_size, 0.01)  # Min 0.01 lots
+        
+        return round(position_size, 2)
+    
+    def _get_symbol_info(self, symbol: str) -> Optional[Dict]:
+        """Get symbol information"""
+        try:
+            resp = requests.get(f"{self.api_base}/market/symbols", timeout=5)
+            if resp.status_code == 200:
+                symbols = resp.json()
+                for sym in symbols:
+                    if sym.get('name') == symbol:
+                        return sym
+        except:
+            pass
+        return None
+    
+    def _get_current_price(self, symbol: str) -> Optional[float]:
+        """Get current price for a symbol"""
+        try:
+            resp = requests.post(
+                f"{self.api_base}/market/tick",
+                json={"symbol": symbol},
+                timeout=5
+            )
+            if resp.status_code == 200:
+                return resp.json().get('bid')
+        except:
+            pass
+        return None
         
     def _get_market_data(self, symbol: str, count: int = 100) -> Optional[pd.DataFrame]:
         """Get market data with longer history for pattern detection"""
@@ -235,15 +400,12 @@ class UltraTradingEngine:
         return None
         
     def _check_spread(self, symbol: str) -> Tuple[bool, float]:
-        """Check if spread is acceptable - ULTRA aggressive mode ignores spread"""
-        # AGGRESSIVE MODE - Always allow trading regardless of spread
-        if CONFIG.get("IGNORE_SPREAD", False):
-            return True, 0
-            
+        """Check if spread is acceptable (different limits per instrument type)"""
         if symbol in self.spread_cache:
             spread, timestamp = self.spread_cache[symbol]
             if time.time() - timestamp < 10:
-                return True, spread  # Always return True in aggressive mode
+                max_spread = self._get_max_spread(symbol)
+                return spread <= max_spread, spread
                 
         try:
             resp = requests.get(f"{self.api_base}/market/symbols/{quote(symbol)}", timeout=3)
@@ -251,14 +413,67 @@ class UltraTradingEngine:
                 data = resp.json()
                 points = data.get('spread', 999)
                 
-                # Convert to pips
-                spread = points * 0.01 if "JPY" in symbol else points * 0.1
+                # Convert to pips (different for metals/crypto/indices)
+                if self._is_metal_pair(symbol):
+                    spread = points * 0.01  # Metals usually in dollars
+                elif self._is_crypto_pair(symbol):
+                    spread = points * 0.1  # Crypto in larger units
+                elif self._is_index_pair(symbol):
+                    spread = points  # Indices use points directly
+                else:
+                    spread = points * 0.01 if "JPY" in symbol else points * 0.1
+                    
                 self.spread_cache[symbol] = (spread, time.time())
                 
-                return True, spread  # Always return True
+                # Get appropriate spread limit
+                max_spread = self._get_max_spread(symbol)
+                return spread <= max_spread, spread
         except:
             pass
-        return True, 0  # Always allow trading
+        return False, 999  # Reject if can't check spread
+    
+    def _get_max_spread(self, symbol: str) -> float:
+        """Get maximum allowed spread based on instrument type"""
+        instrument_type = self._get_instrument_type(symbol)
+        if instrument_type == "crypto":
+            return CONFIG["MAX_SPREAD_CRYPTO"]
+        elif instrument_type == "metal":
+            return CONFIG["MAX_SPREAD_METAL"]
+        elif instrument_type == "index":
+            return CONFIG["MAX_SPREAD_INDEX"]
+        elif instrument_type == "exotic":
+            return CONFIG["MAX_SPREAD_EXOTIC"]
+        else:
+            return CONFIG["MAX_SPREAD_PIPS"]
+    
+    def _is_exotic_pair(self, symbol: str) -> bool:
+        """Check if symbol is an exotic pair"""
+        return any(currency in symbol for currency in CONFIG["EXOTIC_CURRENCIES"])
+    
+    def _is_metal_pair(self, symbol: str) -> bool:
+        """Check if symbol is a precious metal pair"""
+        return any(metal in symbol for metal in CONFIG["METAL_SYMBOLS"])
+    
+    def _is_crypto_pair(self, symbol: str) -> bool:
+        """Check if symbol is a cryptocurrency pair"""
+        return any(crypto in symbol for crypto in CONFIG["CRYPTO_SYMBOLS"])
+    
+    def _is_index_pair(self, symbol: str) -> bool:
+        """Check if symbol is a stock index"""
+        return any(index in symbol for index in CONFIG["INDEX_SYMBOLS"])
+    
+    def _get_instrument_type(self, symbol: str) -> str:
+        """Get the instrument type for risk management"""
+        if self._is_crypto_pair(symbol):
+            return "crypto"
+        elif self._is_metal_pair(symbol):
+            return "metal"
+        elif self._is_index_pair(symbol):
+            return "index"
+        elif self._is_exotic_pair(symbol):
+            return "exotic"
+        else:
+            return "major"
         
     def _calculate_all_indicators(self, df: pd.DataFrame) -> Dict:
         """Calculate ALL 100 trading indicators"""
@@ -978,6 +1193,9 @@ class UltraTradingEngine:
         # 4. Volatility Analysis
         vol_weight = weights['volatility']
         
+        # Special handling for exotic pairs with higher volatility
+        is_exotic = self._is_exotic_pair(symbol)
+        
         if indicators['bb_squeeze'] > 0:
             # Bollinger squeeze often precedes big moves
             if indicators['momentum_14'] > 0:
@@ -987,18 +1205,22 @@ class UltraTradingEngine:
                 sell_score += vol_weight * 1.5
                 
         if indicators['keltner_lower'] > 0:
-            buy_score += vol_weight
+            buy_score += vol_weight * (1.5 if is_exotic else 1.0)
             reasons.append("Keltner Lower")
         if indicators['keltner_upper'] > 0:
-            sell_score += vol_weight
+            sell_score += vol_weight * (1.5 if is_exotic else 1.0)
             reasons.append("Keltner Upper")
             
-        if indicators['vol_ratio'] < 0.7:  # Low volatility
+        # Exotic pairs have different volatility characteristics
+        vol_threshold = 0.5 if is_exotic else 0.7
+        z_threshold = -2.0 if is_exotic else -1.5
+        
+        if indicators['vol_ratio'] < vol_threshold:  # Low volatility
             # Mean reversion more likely
-            if indicators['z_score'] < -1.5:
-                buy_score += vol_weight
-            elif indicators['z_score'] > 1.5:
-                sell_score += vol_weight
+            if indicators['z_score'] < z_threshold:
+                buy_score += vol_weight * (1.2 if is_exotic else 1.0)
+            elif indicators['z_score'] > abs(z_threshold):
+                sell_score += vol_weight * (1.2 if is_exotic else 1.0)
                 
         # 5. Market Structure
         struct_weight = weights['market_structure']
@@ -1247,12 +1469,19 @@ class UltraTradingEngine:
             # Calculate dynamic SL/TP
             atr = indicators['atr']
             
-            # Aggressive stops - tighter for more trades
-            sl_multiplier = 1.0 if CONFIG["AGGRESSIVE_MODE"] else 1.5
-            sl_distance = max(atr * sl_multiplier, 0.0010 if "JPY" not in symbol else 0.10)
+            # Adjust for exotic pairs - wider stops due to higher volatility
+            is_exotic = self._is_exotic_pair(symbol)
             
-            # Lower TP for more frequent wins
-            tp_multiplier = CONFIG["MIN_RR_RATIO"]
+            if is_exotic:
+                sl_multiplier = 2.0  # Wider stops for exotic pairs
+                tp_multiplier = CONFIG["MIN_RR_EXOTIC"]  # Higher RR for exotic pairs
+                min_sl = 0.0020 if "JPY" not in symbol else 0.20  # Larger minimum SL
+            else:
+                sl_multiplier = 1.0 if CONFIG["AGGRESSIVE_MODE"] else 1.5
+                tp_multiplier = CONFIG["MIN_RR_RATIO"]
+                min_sl = 0.0010 if "JPY" not in symbol else 0.10
+            
+            sl_distance = max(atr * sl_multiplier, min_sl)
             tp_distance = sl_distance * tp_multiplier
             
             current_price = indicators['current_price']
@@ -1320,19 +1549,52 @@ class UltraTradingEngine:
             quality=0.1
         )
         
+    def _check_account_safety(self) -> Dict[str, Any]:
+        """Check account safety metrics"""
+        try:
+            resp = requests.get(f"{self.api_base}/account/", timeout=5)
+            if resp.status_code == 200:
+                account = resp.json()
+                
+                balance = account.get('balance', 0)
+                equity = account.get('equity', balance)
+                margin = account.get('margin', 0)
+                free_margin = account.get('margin_free', equity - margin)
+                margin_level = (equity / margin * 100) if margin > 0 else float('inf')
+                
+                return {
+                    'balance': balance,
+                    'equity': equity,
+                    'margin': margin,
+                    'free_margin': free_margin,
+                    'margin_level': margin_level,
+                    'profit': account.get('profit', 0),
+                    'is_safe': margin_level > 200 and free_margin > balance * 0.3
+                }
+        except Exception as e:
+            logger.error(f"Failed to check account safety: {e}")
+            return {'is_safe': False, 'margin_level': 0}
+    
     def _can_trade_symbol(self, symbol: str) -> bool:
-        """ULTRA AGGRESSIVE - Almost always allow trading"""
-        # Very short cooldown per symbol
+        """Check if we can safely trade this symbol"""
+        # Check account safety first
+        account_status = self._check_account_safety()
+        if not account_status.get('is_safe', False):
+            logger.warning(f"❌ Account not safe! Margin Level: {account_status.get('margin_level', 0):.1f}%")
+            return False
+        
+        # Check symbol cooldown
         if symbol in self.last_trade_time:
             time_since_last = time.time() - self.last_trade_time[symbol]
             if time_since_last < CONFIG["POSITION_INTERVAL"]:
                 return False
-                
-        # NO hour restrictions in ULTRA mode
         
-        # NO daily loss check - keep trading!
+        # Check daily loss limit
+        if self.daily_pnl < -self.balance * CONFIG["MAX_DAILY_LOSS"]:
+            logger.warning(f"Daily loss limit reached: ¥{self.daily_pnl:,.0f}")
+            return False
         
-        # Allow more concurrent trades
+        # Check concurrent positions
         if len(self.active_trades) >= CONFIG["MAX_CONCURRENT"]:
             return False
             
@@ -1344,8 +1606,25 @@ class UltraTradingEngine:
         return time_since_last > CONFIG.get("FORCE_TRADE_INTERVAL", 600)
         
     def _place_order(self, symbol: str, signal: Signal) -> bool:
-        """Place order with aggressive parameters"""
+        """Place order with proper risk management"""
+        # Pre-trade validation
+        account_status = self._check_account_safety()
+        if not account_status.get('is_safe', False):
+            logger.error(f"Cannot place order - account not safe! Margin Level: {account_status.get('margin_level', 0):.1f}%")
+            return False
+            
         volume = self._calculate_position_size(symbol, abs(signal.entry - signal.sl))
+        
+        # Estimate required margin
+        symbol_info = self._get_symbol_info(symbol)
+        if symbol_info:
+            contract_size = symbol_info.get('trade_contract_size', 100000)
+            leverage = 100  # Typical forex leverage
+            required_margin = (volume * contract_size * signal.entry) / leverage
+            
+            if required_margin > account_status.get('free_margin', 0) * 0.5:
+                logger.warning(f"Insufficient margin for {symbol}. Required: ¥{required_margin:,.0f}, Available: ¥{account_status.get('free_margin', 0):,.0f}")
+                return False
         
         order = {
             "action": 1,
@@ -1354,12 +1633,12 @@ class UltraTradingEngine:
             "type": 0 if signal.type == SignalType.BUY else 1,
             "sl": signal.sl,
             "tp": signal.tp,
-            "comment": f"ULTRA: {signal.reason[:15]}"
+            "comment": f"Safe: {signal.reason[:10]}"
         }
         
         logger.info(f"🎯 SIGNAL: {signal.type.value} {symbol} @ {signal.entry:.5f}")
         logger.info(f"   SL: {signal.sl:.5f} TP: {signal.tp:.5f} Conf: {signal.confidence:.1%}")
-        logger.info(f"   Volume: {volume} Reason: {signal.reason}")
+        logger.info(f"   Volume: {volume} Margin Level: {account_status.get('margin_level', float('inf')):.1f}%")
         
         try:
             resp = requests.post(f"{self.api_base}/trading/orders", json=order, timeout=10)
@@ -1510,8 +1789,12 @@ class UltraTradingEngine:
                     if not force_trade and not self._can_trade_symbol(symbol):
                         continue
                         
-                    # Always check spread (but it always returns True now)
+                    # Check spread
                     spread_ok, spread = self._check_spread(symbol)
+                    if not spread_ok and not force_trade:
+                        if cycle % 50 == 0:  # Log occasionally
+                            logger.debug(f"Spread too wide for {symbol}: {spread:.1f} pips")
+                        continue
                     
                     # Get data
                     df = self._get_market_data(symbol, count=100)
@@ -1550,12 +1833,14 @@ class UltraTradingEngine:
                                 break
                                 
                 # Status update
-                if cycle % 10 == 0:  # Every 2.5 minutes
+                if cycle % 30 == 0:  # Every 5 minutes
+                    account_status = self._check_account_safety()
                     time_since_trade = (time.time() - self.last_global_trade_time) / 60
-                    logger.info(f"=== ULTRA STATUS ===")
-                    logger.info(f"Active: {len(self.active_trades)} | Daily: {self.daily_trades} | Hourly: {self.trades_this_hour}")
-                    logger.info(f"Last trade: {time_since_trade:.1f} min ago | Force attempts: {self.force_trade_attempts}")
-                    logger.info(f"Signals found: {signal_found} | Traded: {traded_this_cycle}")
+                    logger.info(f"=== TRADING STATUS ===")
+                    logger.info(f"📊 Active: {len(self.active_trades)}/{CONFIG['MAX_CONCURRENT']} | Daily trades: {self.daily_trades}")
+                    logger.info(f"💰 Equity: ¥{account_status.get('equity', 0):,.0f} | Margin Level: {account_status.get('margin_level', float('inf')):.1f}%")
+                    logger.info(f"⏱️  Last trade: {time_since_trade:.1f} min ago")
+                    logger.info(f"📈 Daily P&L: ¥{self.daily_pnl:,.0f} ({self.daily_pnl/self.balance*100:.2f}%)")
                     
                     if time_since_trade > 5:
                         logger.warning(f"⚠️ WARNING: No trades in {time_since_trade:.1f} minutes!")
