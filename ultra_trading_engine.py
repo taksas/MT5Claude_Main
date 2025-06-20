@@ -25,18 +25,68 @@ from collections import deque
 import warnings
 warnings.filterwarnings('ignore')
 
-# Import high-profit symbols configuration
+# Import our comprehensive high-profit symbols configuration
 try:
     from high_profit_symbols_config import (
-        ALL_HIGH_PROFIT_SYMBOLS, get_priority_symbols,
-        get_symbol_config, get_active_session_symbols,
-        EXOTIC_CURRENCY_PAIRS, CROSS_CURRENCY_PAIRS,
-        EXOTIC_METALS, EXOTIC_INDICES, COMMODITY_FUTURES
+        ALL_HIGH_PROFIT_SYMBOLS,
+        EXTREME_VOLATILITY_SYMBOLS,
+        VERY_HIGH_VOLATILITY_SYMBOLS,
+        HIGH_VOLATILITY_SYMBOLS,
+        RISK_MANAGEMENT,
+        get_symbol_config,
+        get_symbols_by_tier,
+        should_trade_symbol
     )
-    HIGH_PROFIT_CONFIG_LOADED = True
+    USE_EXTERNAL_CONFIG = True
 except ImportError:
-    logger.warning("High-profit symbols config not found, using default symbols")
-    HIGH_PROFIT_CONFIG_LOADED = False
+    USE_EXTERNAL_CONFIG = False
+    # Fallback to embedded configuration
+    HIGH_PROFIT_SYMBOLS = {
+        # Exotic Currency Pairs - Extreme Volatility
+        "USDTRY": {"avg_daily_range": 2000, "typical_spread": 50, "risk_factor": 0.005, "profit_potential": "extreme"},
+        "EURTRY": {"avg_daily_range": 2500, "typical_spread": 80, "risk_factor": 0.004, "profit_potential": "extreme"},
+        "USDZAR": {"avg_daily_range": 1834, "typical_spread": 100, "risk_factor": 0.005, "profit_potential": "very_high"},
+        "USDMXN": {"avg_daily_range": 600, "typical_spread": 50, "risk_factor": 0.007, "profit_potential": "high"},
+        "EURNOK": {"avg_daily_range": 800, "typical_spread": 30, "risk_factor": 0.008, "profit_potential": "high"},
+        "EURSEK": {"avg_daily_range": 600, "typical_spread": 30, "risk_factor": 0.008, "profit_potential": "medium_high"},
+        
+        # High-Profit Cross Currency Pairs
+        "EURGBP": {"avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, "strategy": "range_trading"},
+        "EURAUD": {"avg_daily_range": 110, "typical_spread": 3, "risk_factor": 0.009, "strategy": "trend_following"},
+        "EURNZD": {"avg_daily_range": 140, "typical_spread": 4, "risk_factor": 0.008, "strategy": "volatility_breakout"},
+        "EURJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.009, "strategy": "risk_sentiment"},
+        "GBPJPY": {"avg_daily_range": 150, "typical_spread": 3, "risk_factor": 0.007, "profit_potential": "very_high"},
+        "GBPAUD": {"avg_daily_range": 160, "typical_spread": 4, "risk_factor": 0.007, "profit_potential": "very_high"},
+        "GBPNZD": {"avg_daily_range": 200, "typical_spread": 5, "risk_factor": 0.006, "profit_potential": "extreme"},
+        "AUDJPY": {"avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.009, "strategy": "carry_trade"},
+        "NZDJPY": {"avg_daily_range": 85, "typical_spread": 3, "risk_factor": 0.009, "strategy": "carry_trade"},
+        "AUDNZD": {"avg_daily_range": 50, "typical_spread": 3, "risk_factor": 0.010, "strategy": "mean_reversion"},
+        
+        # Exotic Metals
+        "XPDUSD": {"avg_daily_range": 50, "typical_spread": 100, "risk_factor": 0.005, "volatility": "4%_daily"},
+        "XPTUSD": {"avg_daily_range": 30, "typical_spread": 50, "risk_factor": 0.007, "volatility": "3%_daily"},
+        
+        # Commodities
+        "NATGAS": {"avg_daily_range": 0.1, "typical_spread": 10, "risk_factor": 0.005, "seasonal": "Dec-Feb,Jun-Aug"},
+        "WHEAT": {"avg_daily_range": 10, "typical_spread": 5, "risk_factor": 0.007, "seasonal": "Mar-May,Jul-Sep"},
+        "COPPER": {"avg_daily_range": 0.05, "typical_spread": 5, "risk_factor": 0.008, "correlation": "China_data"}
+    }
+
+def get_symbol_config(symbol):
+    """Get configuration for a specific symbol"""
+    if USE_EXTERNAL_CONFIG:
+        # Try external config first
+        config = ALL_HIGH_PROFIT_SYMBOLS.get(symbol)
+        if config:
+            return config
+    
+    # Fallback to embedded config
+    return HIGH_PROFIT_SYMBOLS.get(symbol, {
+        "avg_daily_range": 100,
+        "typical_spread": 2,
+        "risk_factor": 0.01,
+        "profit_potential": "medium"
+    })
 
 # Logging configuration
 logging.basicConfig(
@@ -168,9 +218,14 @@ class UltraTradingEngine:
             logger.error("No tradable symbols found")
             return False
             
-        logger.info(f"🚀 Starting Safe Trading Engine")
+        logger.info(f"🚀 Starting Ultra Trading Engine")
         logger.info(f"💰 Balance: ¥{self.balance:,.0f}")
         logger.info(f"📊 Trading {len(self.tradable_symbols)} symbols: {self.tradable_symbols[:5]}...")
+        if USE_EXTERNAL_CONFIG:
+            logger.info(f"🔥 Using HIGH-PROFIT symbols configuration!")
+            logger.info(f"📈 Extreme volatility: {len(EXTREME_VOLATILITY_SYMBOLS)} symbols")
+            logger.info(f"📈 Very high volatility: {len(VERY_HIGH_VOLATILITY_SYMBOLS)} symbols")
+            logger.info(f"📈 High volatility: {len(HIGH_VOLATILITY_SYMBOLS)} symbols")
         logger.info(f"⏱️  Position interval: {CONFIG['POSITION_INTERVAL']/60:.0f} minutes per symbol")
         logger.info(f"🎯 Requirements: Min Conf={CONFIG['MIN_CONFIDENCE']}, Min Strategies={CONFIG['MIN_STRATEGIES']}")
         logger.info(f"🛡️  Risk: {CONFIG['RISK_PER_TRADE']*100}% per trade, Max daily loss: {CONFIG['MAX_DAILY_LOSS']*100}%")
@@ -200,48 +255,11 @@ class UltraTradingEngine:
     def _discover_symbols(self) -> List[str]:
         """Discover all tradable forex symbols including exotic pairs"""
         # First, try to use high-profit symbols from configuration
-        if HIGH_PROFIT_CONFIG_LOADED:
-            try:
-                # Get current hour for session-based selection
-                from datetime import datetime
-                current_hour_utc = datetime.utcnow().hour
-                
-                # Get priority symbols based on profit potential
-                priority_symbols = get_priority_symbols(max_symbols=CONFIG["MAX_SYMBOLS"])
-                
-                # Get session-specific active symbols
-                session_symbols = get_active_session_symbols(current_hour_utc)
-                
-                # Combine priority and session symbols
-                combined_symbols = list(set(priority_symbols + session_symbols))
-                
-                # Now verify these exist on the broker
-                resp = requests.get(f"{self.api_base}/market/symbols", timeout=10)
-                if resp.status_code == 200:
-                    broker_symbols = resp.json()
-                    broker_symbol_names = [s.get('name', '') for s in broker_symbols]
-                    
-                    # Match our high-profit symbols with broker symbols
-                    verified_symbols = []
-                    for hp_symbol in combined_symbols:
-                        # Try exact match first
-                        if hp_symbol in broker_symbol_names:
-                            verified_symbols.append(hp_symbol)
-                        else:
-                            # Try with common suffixes
-                            for suffix in ['#', '.', '', 'cash', 'Cash']:
-                                test_symbol = hp_symbol + suffix
-                                if test_symbol in broker_symbol_names:
-                                    verified_symbols.append(test_symbol)
-                                    break
-                    
-                    if verified_symbols:
-                        logger.info(f"Loaded {len(verified_symbols)} high-profit symbols")
-                        return verified_symbols[:CONFIG["MAX_SYMBOLS"]]
-            except Exception as e:
-                logger.warning(f"Failed to load high-profit symbols: {e}")
+        if USE_EXTERNAL_CONFIG:
+            priority_symbols = list(ALL_HIGH_PROFIT_SYMBOLS.keys())
+        else:
+            priority_symbols = list(HIGH_PROFIT_SYMBOLS.keys())
         
-        # Fall back to original discovery method
         try:
             resp = requests.get(f"{self.api_base}/market/symbols", timeout=10)
             if resp.status_code == 200:
@@ -294,44 +312,61 @@ class UltraTradingEngine:
                 # Prioritize mix of all instrument types
                 combined_symbols = []
                 
-                # Add core major pairs (20% allocation)
-                major_pairs = ["EURUSD", "USDJPY", "GBPUSD"]
-                for pair in major_pairs:
-                    matching = [s for s in forex_symbols if pair in s]
-                    combined_symbols.extend(matching[:1])
+                # FIRST PRIORITY: Add all symbols from our high-profit configuration
+                if USE_EXTERNAL_CONFIG:
+                    # Check which priority symbols are available
+                    for symbol in priority_symbols:
+                        # Try to find exact match first
+                        if symbol in all_symbols:
+                            combined_symbols.append(symbol)
+                        else:
+                            # Try with broker suffix
+                            for suffix in ['#', '.', '']:
+                                test_symbol = f"{symbol}{suffix}"
+                                matching = [s['name'] for s in all_symbols if s.get('name', '') == test_symbol]
+                                if matching:
+                                    combined_symbols.extend(matching[:1])
+                                    break
                 
-                # Add precious metals (25% allocation) - HIGHEST PROFIT POTENTIAL
-                priority_metals = ["XAUUSD", "XAGUSD", "XAUEUR", "XAUJPY"]
-                for pair in priority_metals:
-                    matching = [s for s in metal_pairs if pair in s]
-                    combined_symbols.extend(matching[:1])
-                
-                # Add high-profit exotic pairs (20% allocation) - 200-500 pip daily ranges
-                priority_exotics = ["USDZAR", "USDMXN", "USDTRY", "EURTRY", "USDPLN"]
-                for pair in priority_exotics:
-                    matching = [s for s in exotic_pairs if pair in s]
-                    combined_symbols.extend(matching[:1])
-                
-                # Add high-profit indices (20% allocation) - 60-85% annual returns
-                priority_indices = ["US30", "USTEC", "NAS100", "GER40", "DAX"]
-                for pair in priority_indices:
-                    matching = [s for s in index_pairs if pair in s]
-                    combined_symbols.extend(matching[:1])
-                
-                # Add cross-currency mean reversion pairs (10% allocation)
-                cross_pairs = ["EURGBP", "AUDNZD", "EURCHF", "GBPJPY", "EURNOK"]
-                for pair in cross_pairs:
-                    matching = [s for s in forex_symbols if pair in s]
-                    combined_symbols.extend(matching[:1])
-                
-                # Add crypto pairs if available (10% allocation)
-                priority_crypto = ["BTCUSD", "ETHUSD"]
-                for pair in priority_crypto:
-                    matching = [s for s in crypto_pairs if pair in s]
-                    combined_symbols.extend(matching[:1])
-                
-                # Add ultra-exotic crosses if found (10% allocation)
-                combined_symbols.extend(ultra_exotic_crosses[:2])
+                # If we have filled most slots with high-profit symbols, just add a few more
+                if len(combined_symbols) >= CONFIG["MAX_SYMBOLS"] * 0.8:
+                    logger.info(f"🔥 Loaded {len(combined_symbols)} HIGH-PROFIT symbols from configuration!")
+                else:
+                    # Add additional symbols using old logic
+                    # Add core major pairs (if not already included)
+                    major_pairs = ["EURUSD", "USDJPY", "GBPUSD"]
+                    for pair in major_pairs:
+                        if not any(pair in s for s in combined_symbols):
+                            matching = [s for s in forex_symbols if pair in s]
+                            combined_symbols.extend(matching[:1])
+                    
+                    # Add precious metals (HIGHEST PROFIT POTENTIAL)
+                    priority_metals = ["XAUUSD", "XAGUSD", "XPDUSD", "XPTUSD"]
+                    for pair in priority_metals:
+                        if not any(pair in s for s in combined_symbols):
+                            matching = [s for s in metal_pairs if pair in s]
+                            combined_symbols.extend(matching[:1])
+                    
+                    # Add high-profit exotic pairs
+                    priority_exotics = ["USDZAR", "USDMXN", "USDTRY", "EURTRY", "GBPTRY"]
+                    for pair in priority_exotics:
+                        if not any(pair in s for s in combined_symbols):
+                            matching = [s for s in exotic_pairs if pair in s]
+                            combined_symbols.extend(matching[:1])
+                    
+                    # Add high-profit indices
+                    priority_indices = ["US2000", "VIX", "HK50", "BVSP"]
+                    for pair in priority_indices:
+                        if not any(pair in s for s in combined_symbols):
+                            matching = [s for s in index_pairs if pair in s]
+                            combined_symbols.extend(matching[:1])
+                    
+                    # Add commodities
+                    priority_commodities = ["NATGAS", "UKOIL", "USOIL", "COFFEE", "WHEAT"]
+                    for pair in priority_commodities:
+                        if not any(pair in s for s in combined_symbols):
+                            matching = [s['name'] for s in all_symbols if pair in s.get('name', '')]
+                            combined_symbols.extend(matching[:1])
                 
                 # Fill remaining slots with diverse selection
                 remaining_slots = CONFIG["MAX_SYMBOLS"] - len(combined_symbols)
@@ -351,9 +386,18 @@ class UltraTradingEngine:
             logger.error(f"Failed to discover symbols: {e}")
             
         # Enhanced fallback with high-profit symbols
-        return ["EURUSD#", "USDJPY#", "GBPUSD#", "XAUUSD#", "XAGUSD#", "US30#",
-                "USTEC#", "GER40#", "USDZAR#", "USDMXN#", "EURGBP#", "AUDNZD#",
-                "GBPJPY#", "EURTRY#", "USDPLN#"]
+        if USE_EXTERNAL_CONFIG:
+            # Return our high-profit symbols with common broker suffixes
+            fallback_symbols = []
+            for symbol in list(EXTREME_VOLATILITY_SYMBOLS.keys())[:5] + \
+                         list(VERY_HIGH_VOLATILITY_SYMBOLS.keys())[:5] + \
+                         list(HIGH_VOLATILITY_SYMBOLS.keys())[:5]:
+                fallback_symbols.append(f"{symbol}#")
+            return fallback_symbols
+        else:
+            return ["EURUSD#", "USDJPY#", "GBPUSD#", "XAUUSD#", "XAGUSD#", "US30#",
+                    "USTEC#", "GER40#", "USDZAR#", "USDMXN#", "EURGBP#", "AUDNZD#",
+                    "GBPJPY#", "EURTRY#", "USDPLN#"]
         
     def _calculate_position_size(self, symbol: str, sl_distance: float) -> float:
         """Calculate safe position size based on risk management"""
@@ -364,12 +408,16 @@ class UltraTradingEngine:
         
         # Use equity for risk calculation, not balance
         # Try to get symbol-specific risk from high-profit config first
-        if HIGH_PROFIT_CONFIG_LOADED:
-            symbol_config = get_symbol_config(symbol)
+        symbol_config = get_symbol_config(symbol)
+        
+        # Use new config format if available
+        if USE_EXTERNAL_CONFIG and 'risk_per_trade' in symbol_config:
+            risk_per_trade = symbol_config['risk_per_trade']
+        else:
             risk_per_trade = symbol_config.get("risk_factor", None)
             
         # Fall back to instrument type based risk if not found
-        if not HIGH_PROFIT_CONFIG_LOADED or risk_per_trade is None:
+        if risk_per_trade is None:
             instrument_type = self._get_instrument_type(symbol)
             risk_map = {
                 "crypto": CONFIG["RISK_PER_CRYPTO"],
@@ -497,12 +545,16 @@ class UltraTradingEngine:
     def _get_max_spread(self, symbol: str) -> float:
         """Get maximum allowed spread based on instrument type"""
         # Try to get symbol-specific spread from high-profit config first
-        if HIGH_PROFIT_CONFIG_LOADED:
-            symbol_config = get_symbol_config(symbol)
-            typical_spread = symbol_config.get("typical_spread", 0)
-            if typical_spread > 0:
-                # Allow 1.5x typical spread as maximum
-                return typical_spread * 1.5
+        symbol_config = get_symbol_config(symbol)
+        
+        # Use new config format if available
+        if USE_EXTERNAL_CONFIG and 'max_spread' in symbol_config:
+            return symbol_config['max_spread']
+        
+        typical_spread = symbol_config.get("typical_spread", 0)
+        if typical_spread > 0:
+            # Allow 1.5x typical spread as maximum
+            return typical_spread * 1.5
         
         # Fall back to instrument type based spreads
         instrument_type = self._get_instrument_type(symbol)

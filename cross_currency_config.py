@@ -1,444 +1,264 @@
-#!/usr/bin/env python3
-"""
-Cross-Currency Pair Configuration for Ultra Trading Engine
-High-profit cross pairs with specific trading parameters
-"""
+# Cross-Currency Pairs Configuration for MT5 Trading
+# Selected based on profitability, liquidity, and automated trading suitability
 
-# Cross-Currency Trading Configuration
-CROSS_CURRENCY_CONFIG = {
-    # EUR Crosses - Premium European Pairs
+CROSS_CURRENCY_PAIRS = {
+    # EUR Crosses - Excellent for various strategies
     "EURGBP": {
-        "category": "range",
-        "daily_range_pips": [40, 80],
-        "atr_range": [0.0045, 0.0065],
-        "volatility": 6.5,  # Annual %
-        "optimal_hours": [7, 16],  # GMT
-        "strategy": "range_trading",
-        "sl_pips": 30,
-        "tp_pips": 45,
-        "risk_percent": 1.0,
-        "min_confidence": 0.55,
-        "key_levels": [0.8300, 0.8500, 0.8700, 0.9000],
-        "correlation": {"GBPUSD": -0.65},
-        "spread_limit": 2.5,
-        "filters": {
-            "rsi_range": [30, 70],
-            "bb_squeeze": True,
-            "avoid_news": True
-        }
-    },
-    
-    "EURAUD": {
-        "category": "trend",
-        "daily_range_pips": [80, 140],
-        "atr_range": [0.0090, 0.0120],
-        "volatility": 9.2,
-        "optimal_hours": [22, 2],  # Sydney-London overlap
-        "strategy": "trend_following",
-        "sl_pips": 70,
-        "tp_pips": 150,
-        "risk_percent": 0.8,
-        "min_confidence": 0.60,
-        "seasonal_strength": ["Q4"],
-        "correlation": {"XAUUSD": 0.45},
-        "spread_limit": 4.0,
-        "filters": {
-            "adx_min": 25,
-            "ema_cross": [20, 50],
-            "trend_strength": 0.7
-        }
-    },
-    
-    "EURNZD": {
-        "category": "breakout",
-        "daily_range_pips": [100, 180],
-        "atr_range": [0.0140, 0.0180],
-        "volatility": 11.5,
-        "optimal_hours": [22, 10],
-        "strategy": "volatility_breakout",
-        "sl_pips": 90,
-        "tp_pips": 200,
-        "risk_percent": 0.7,
-        "min_confidence": 0.65,
-        "correlation": {"dairy_futures": -0.72},
-        "spread_limit": 5.0,
-        "filters": {
-            "volume_surge": 2.0,
-            "breakout_confirmation": True,
-            "false_breakout_check": True
-        }
+        "symbol": "EURGBP",
+        "strategy": "mean_reversion",
+        "avg_daily_range": 70,  # pips
+        "typical_spread": 2.0,
+        "best_hours": [(8, 16)],  # GMT
+        "max_spread": 3.0,
+        "risk_multiplier": 1.2,  # Lower volatility = slightly higher risk
+        "win_rate_target": 0.70,
+        "take_profit": 25,
+        "stop_loss": 20,
+        "notes": "Excellent range-bound behavior, high win rate"
     },
     
     "EURJPY": {
-        "category": "momentum",
-        "daily_range_pips": [80, 150],
-        "atr_range": [0.95, 1.40],
-        "volatility": 10.8,
-        "optimal_hours": [0, 9],  # Tokyo-London overlap
-        "strategy": "risk_sentiment",
-        "sl_pips": 60,
-        "tp_pips": 120,
-        "risk_percent": 0.8,
-        "min_confidence": 0.60,
-        "correlation": {"SP500": 0.80, "risk_on": True},
-        "spread_limit": 3.0,
-        "filters": {
-            "stock_correlation": 0.75,
-            "macd_confluence": True,
-            "session_momentum": True
-        }
+        "symbol": "EURJPY",
+        "strategy": "trend_following",
+        "avg_daily_range": 120,
+        "typical_spread": 2.5,
+        "best_hours": [(7, 16), (0, 2)],  # European session and Tokyo overlap
+        "max_spread": 4.0,
+        "risk_multiplier": 1.0,
+        "win_rate_target": 0.68,
+        "take_profit": 40,
+        "stop_loss": 30,
+        "notes": "Best risk-on/risk-off proxy, follows equities"
     },
     
-    # GBP Crosses - High Volatility Opportunities
+    "EURAUD": {
+        "symbol": "EURAUD",
+        "strategy": "breakout",
+        "avg_daily_range": 140,
+        "typical_spread": 3.0,
+        "best_hours": [(0, 2), (7, 9)],
+        "max_spread": 5.0,
+        "risk_multiplier": 0.8,  # Higher volatility = lower risk
+        "win_rate_target": 0.60,
+        "take_profit": 60,
+        "stop_loss": 40,
+        "notes": "Large ranges, clear trends, weekend gaps"
+    },
+    
+    "EURNZD": {
+        "symbol": "EURNZD",
+        "strategy": "breakout",
+        "avg_daily_range": 160,
+        "typical_spread": 4.0,
+        "best_hours": [(22, 6), (7, 9)],  # Asian session focus
+        "max_spread": 6.0,
+        "risk_multiplier": 0.7,
+        "win_rate_target": 0.58,
+        "take_profit": 80,
+        "stop_loss": 50,
+        "notes": "Highest EUR cross volatility, strong trends"
+    },
+    
+    # GBP Crosses - High volatility, high reward
     "GBPJPY": {
-        "category": "beast",
-        "daily_range_pips": [100, 200],
-        "atr_range": [1.20, 1.80],
-        "volatility": 13.5,
-        "optimal_hours": [7, 16],
-        "strategy": "volatility_explosion",
-        "sl_pips": 90,
-        "tp_pips": 200,
-        "risk_percent": 0.5,  # Lower risk due to high volatility
-        "min_confidence": 0.70,
-        "correlation": {"VIX": -0.85},
-        "spread_limit": 4.0,
-        "filters": {
-            "atr_expansion": True,
-            "range_break_hours": 2,
-            "max_positions": 1,  # Only one position at a time
-            "strict_risk": True
-        }
+        "symbol": "GBPJPY",
+        "strategy": "momentum",
+        "avg_daily_range": 170,
+        "typical_spread": 2.8,
+        "best_hours": [(8, 16)],
+        "max_spread": 4.5,
+        "risk_multiplier": 0.6,  # "The Dragon" - manage risk carefully
+        "win_rate_target": 0.65,
+        "take_profit": 70,
+        "stop_loss": 50,
+        "notes": "Extreme volatility, excellent momentum"
     },
     
     "GBPAUD": {
-        "category": "swing",
-        "daily_range_pips": [120, 200],
-        "atr_range": [0.0150, 0.0200],
-        "volatility": 12.2,
-        "optimal_hours": [8, 16],
-        "strategy": "swing_trading",
-        "sl_pips": 110,
-        "tp_pips": 250,
-        "risk_percent": 0.6,
-        "min_confidence": 0.65,
-        "correlation": {"copper": -0.60},
-        "spread_limit": 5.0,
-        "filters": {
-            "daily_patterns": True,
-            "commodity_divergence": True,
-            "uk_data_impact": True
-        }
+        "symbol": "GBPAUD",
+        "strategy": "trend_following",
+        "avg_daily_range": 190,
+        "typical_spread": 4.0,
+        "best_hours": [(22, 0), (8, 10)],
+        "max_spread": 6.0,
+        "risk_multiplier": 0.5,
+        "win_rate_target": 0.64,
+        "take_profit": 90,
+        "stop_loss": 60,
+        "notes": "Massive ranges, strong trends"
     },
     
-    "GBPNZD": {
-        "category": "extreme",
-        "daily_range_pips": [150, 250],
-        "atr_range": [0.0200, 0.0280],
-        "volatility": 14.8,
-        "optimal_hours": [8, 16],
-        "strategy": "news_momentum",
-        "sl_pips": 135,
-        "tp_pips": 325,
-        "risk_percent": 0.4,  # Lowest risk due to extreme volatility
-        "min_confidence": 0.75,
-        "correlation": {"interest_differential": True},
-        "spread_limit": 6.0,
-        "filters": {
-            "news_required": True,
-            "post_news_momentum": True,
-            "max_daily_trades": 2
-        }
-    },
-    
-    # JPY Commodity Crosses
+    # JPY Crosses - Risk sentiment plays
     "AUDJPY": {
-        "category": "carry",
-        "daily_range_pips": [60, 120],
-        "atr_range": [0.75, 1.10],
-        "volatility": 10.2,
-        "optimal_hours": [22, 6],  # Sydney session
+        "symbol": "AUDJPY",
         "strategy": "carry_trade",
-        "sl_pips": 55,
-        "tp_pips": 125,
-        "risk_percent": 0.8,
-        "min_confidence": 0.55,
-        "correlation": {"copper": 0.82, "SPX": 0.75},
-        "spread_limit": 3.0,
-        "filters": {
-            "interest_positive": True,
-            "china_data": True,
-            "trend_alignment": True
-        }
+        "avg_daily_range": 100,
+        "typical_spread": 2.5,
+        "best_hours": [(0, 9)],  # Tokyo session
+        "max_spread": 4.0,
+        "risk_multiplier": 1.0,
+        "win_rate_target": 0.66,
+        "take_profit": 35,
+        "stop_loss": 25,
+        "notes": "Commodity/risk correlation, carry potential"
     },
     
     "NZDJPY": {
-        "category": "yield",
-        "daily_range_pips": [60, 100],
-        "atr_range": [0.65, 0.95],
-        "volatility": 9.8,
-        "optimal_hours": [21, 1],
-        "strategy": "position_trading",
-        "sl_pips": 70,
-        "tp_pips": 160,
-        "risk_percent": 0.9,
-        "min_confidence": 0.55,
-        "correlation": {"milk_futures": 0.70},
-        "spread_limit": 3.0,
-        "seasonal": ["Q2", "Q3"],
-        "filters": {
-            "weekly_trend": True,
-            "carry_differential": 0.5,
-            "hold_time_days": 2
-        }
+        "symbol": "NZDJPY",
+        "strategy": "trend_following",
+        "avg_daily_range": 110,
+        "typical_spread": 2.8,
+        "best_hours": [(22, 2), (0, 9)],
+        "max_spread": 4.5,
+        "risk_multiplier": 0.9,
+        "win_rate_target": 0.62,
+        "take_profit": 45,
+        "stop_loss": 35,
+        "notes": "Higher volatility than AUDJPY"
     },
     
-    "CADJPY": {
-        "category": "oil",
-        "daily_range_pips": [50, 90],
-        "atr_range": [0.60, 0.85],
-        "volatility": 8.5,
-        "optimal_hours": [13, 21],  # US session
-        "strategy": "correlation_trading",
-        "sl_pips": 45,
-        "tp_pips": 100,
-        "risk_percent": 1.0,
-        "min_confidence": 0.55,
-        "correlation": {"WTI": 0.85},
-        "spread_limit": 2.5,
-        "filters": {
-            "oil_divergence": True,
-            "min_oil_move": 1.5,  # %
-            "api_wednesdays": True
-        }
-    },
-    
-    # Special Mean Reversion Pairs
+    # Special Pairs - Unique opportunities
     "AUDNZD": {
-        "category": "mean_reversion",
-        "daily_range_pips": [40, 70],
-        "atr_range": [0.0050, 0.0070],
-        "volatility": 5.8,
-        "optimal_hours": [22, 6],
-        "strategy": "range_bound",
-        "sl_pips": 35,
-        "tp_pips": 50,
-        "risk_percent": 1.2,  # Higher risk for stable pair
-        "min_confidence": 0.50,
-        "range": [1.0000, 1.1500],
-        "spread_limit": 2.0,
-        "filters": {
-            "bb_2sd": True,
-            "rsi_extreme": [20, 80],
-            "range_percent": 0.8
-        }
-    },
-    
-    "AUDCAD": {
-        "category": "commodity",
-        "daily_range_pips": [50, 90],
-        "atr_range": [0.0065, 0.0085],
-        "volatility": 7.2,
-        "optimal_hours": [13, 21],
-        "strategy": "commodity_divergence",
-        "sl_pips": 50,
-        "tp_pips": 110,
-        "risk_percent": 0.9,
-        "min_confidence": 0.60,
-        "correlation": {"gold_oil_ratio": True},
-        "spread_limit": 3.0,
-        "filters": {
-            "weekly_reversal": True,
-            "round_numbers": True,
-            "commodity_spread": 2.0
-        }
-    },
-    
-    # Exotic Crosses
-    "GBPCHF": {
-        "category": "safe_haven",
-        "daily_range_pips": [80, 140],
-        "atr_range": [0.0100, 0.0140],
-        "volatility": 9.5,
-        "optimal_hours": [8, 16],
-        "strategy": "risk_sentiment",
-        "sl_pips": 80,
-        "tp_pips": 170,
-        "risk_percent": 0.7,
-        "min_confidence": 0.65,
-        "correlation": {"SMI": -0.70},
-        "spread_limit": 4.0,
-        "filters": {
-            "brexit_filter": True,
-            "snb_watch": True,
-            "risk_transitions": True
-        }
+        "symbol": "AUDNZD",
+        "strategy": "mean_reversion",
+        "avg_daily_range": 75,
+        "typical_spread": 3.0,
+        "best_hours": [(22, 7)],  # Sydney session
+        "max_spread": 5.0,
+        "risk_multiplier": 1.3,
+        "win_rate_target": 0.72,
+        "take_profit": 30,
+        "stop_loss": 25,
+        "notes": "Best mean reversion pair, 80% range-bound"
     },
     
     "EURCHF": {
-        "category": "policy",
-        "daily_range_pips": [30, 60],
-        "atr_range": [0.0035, 0.0055],
-        "volatility": 4.5,
-        "optimal_hours": [8, 16],
-        "strategy": "policy_divergence",
-        "sl_pips": 25,
-        "tp_pips": 40,
-        "risk_percent": 1.0,
-        "min_confidence": 0.60,
-        "floor": 1.0500,  # Historical SNB floor
-        "spread_limit": 2.0,
-        "filters": {
-            "ecb_snb_divergence": True,
-            "low_volatility": True,
-            "technical_only": False
-        }
+        "symbol": "EURCHF",
+        "strategy": "grid_trading",
+        "avg_daily_range": 50,
+        "typical_spread": 2.0,
+        "best_hours": [(7, 16)],
+        "max_spread": 3.5,
+        "risk_multiplier": 1.5,  # Very stable
+        "win_rate_target": 0.68,
+        "take_profit": 20,
+        "stop_loss": 15,
+        "notes": "SNB influence, extremely stable"
     }
 }
 
-# Trading Strategy Definitions
-CROSS_STRATEGIES = {
-    "range_trading": {
-        "indicators": ["bollinger_bands", "rsi", "support_resistance"],
-        "entry_rules": {
-            "bb_touch": True,
-            "rsi_divergence": True,
-            "sr_bounce": True
-        },
-        "exit_rules": {
-            "bb_middle": True,
-            "time_based": 240  # minutes
-        }
+# Strategy-specific settings
+STRATEGY_SETTINGS = {
+    "mean_reversion": {
+        "rsi_period": 14,
+        "rsi_oversold": 30,
+        "rsi_overbought": 70,
+        "bb_period": 20,
+        "bb_std": 2.0,
+        "min_range_pips": 50
     },
     
     "trend_following": {
-        "indicators": ["ema_cross", "adx", "macd"],
-        "entry_rules": {
-            "ema_alignment": True,
-            "adx_above": 25,
-            "macd_confirmation": True
-        },
-        "exit_rules": {
-            "trailing_stop": True,
-            "reverse_signal": True
-        }
+        "ema_fast": 20,
+        "ema_slow": 50,
+        "adx_period": 14,
+        "adx_threshold": 25,
+        "momentum_period": 10
     },
     
-    "volatility_breakout": {
-        "indicators": ["atr", "volume", "range_break"],
-        "entry_rules": {
-            "range_hours": 4,
-            "volume_spike": 2.0,
-            "atr_expansion": True
-        },
-        "exit_rules": {
-            "profit_target": True,
-            "volatility_contraction": True
-        }
+    "breakout": {
+        "lookback_periods": 20,
+        "atr_multiplier": 1.5,
+        "volume_confirmation": True,
+        "min_range_break": 1.2  # Times average range
     },
     
-    "mean_reversion": {
-        "indicators": ["bollinger_bands", "rsi", "zscore"],
-        "entry_rules": {
-            "bb_2sd": True,
-            "rsi_extreme": [25, 75],
-            "zscore_extreme": [-2, 2]
-        },
-        "exit_rules": {
-            "mean_touch": True,
-            "opposite_extreme": True
-        }
+    "momentum": {
+        "rsi_period": 9,
+        "rsi_momentum": 60,  # Above for long, below 40 for short
+        "macd_fast": 12,
+        "macd_slow": 26,
+        "macd_signal": 9
     },
     
     "carry_trade": {
-        "indicators": ["interest_differential", "trend", "momentum"],
-        "entry_rules": {
-            "positive_carry": True,
-            "trend_alignment": True,
-            "no_reversal_pattern": True
-        },
-        "exit_rules": {
-            "weekly_close": True,
-            "carry_change": True
-        }
+        "min_interest_differential": 1.0,  # Percent
+        "trend_filter": True,
+        "ema_period": 50,
+        "hold_days": 5  # Minimum hold period
+    },
+    
+    "grid_trading": {
+        "grid_size": 20,  # Pips
+        "max_positions": 5,
+        "tp_per_level": 20,
+        "martingale": False,  # Safer without
+        "range_bound_check": True
     }
 }
 
-# Correlation Matrix for Risk Management
-CROSS_CORRELATIONS = {
-    "EURGBP": {
-        "GBPUSD": -0.65,
-        "EURUSD": 0.45,
-        "GBPJPY": -0.55
-    },
-    "GBPJPY": {
-        "USDJPY": 0.70,
-        "EURJPY": 0.85,
-        "risk_on": 0.80
-    },
-    "AUDNZD": {
-        "AUDUSD": 0.30,
-        "NZDUSD": -0.30,
-        "commodity": 0.50
-    }
+# Risk management overrides for cross currencies
+CROSS_RISK_MANAGEMENT = {
+    "max_correlation_exposure": 0.7,  # Max correlation between open positions
+    "max_currency_exposure": 2,  # Max positions with same currency
+    "volatility_adjustment": True,  # Adjust position size by volatility
+    "news_filter": True,  # Avoid trading during high-impact news
+    "session_overlap_bonus": 1.2,  # Increase confidence during overlaps
+    "weekend_gap_protection": True,  # Close positions before weekend
+    "max_spread_multiplier": 1.5,  # During low liquidity
 }
 
-# Session Optimization
-SESSION_PREFERENCES = {
-    "asian": ["AUDJPY", "NZDJPY", "AUDNZD", "EURAUD"],
-    "european": ["EURGBP", "EURJPY", "GBPCHF", "EURCHF"],
-    "london": ["GBPJPY", "GBPAUD", "GBPNZD", "EURNZD"],
-    "newyork": ["CADJPY", "AUDCAD", "USDCAD", "GBPUSD"]
+# Correlation matrix for risk management
+CORRELATION_MATRIX = {
+    "EURGBP": {"GBPUSD": -0.7, "EURUSD": 0.5},
+    "EURJPY": {"USDJPY": 0.6, "RISK_ON": 0.8},
+    "GBPJPY": {"RISK_ON": 0.85, "EURJPY": 0.7},
+    "AUDJPY": {"COMMODITIES": 0.8, "NZDJPY": 0.9},
+    "AUDNZD": {"AUDUSD": 0.3, "NZDUSD": -0.3}
 }
 
-# Risk Scaling by Volatility
-VOLATILITY_RISK_SCALE = {
-    "low": {"volatility_max": 7.0, "risk_multiplier": 1.2},
-    "medium": {"volatility_max": 10.0, "risk_multiplier": 1.0},
-    "high": {"volatility_max": 13.0, "risk_multiplier": 0.7},
-    "extreme": {"volatility_max": 100.0, "risk_multiplier": 0.5}
+# Time zone conversions (to server time)
+TIME_ZONES = {
+    "GMT": 0,
+    "Tokyo": 9,
+    "Sydney": 11,
+    "London": 0,  # GMT
+    "NewYork": -5
 }
 
-def get_cross_config(symbol: str) -> dict:
-    """Get configuration for a specific cross pair"""
-    return CROSS_CURRENCY_CONFIG.get(symbol.replace("#", "").replace(".", ""), {})
+# News events to avoid (high impact)
+NEWS_BLACKOUT = {
+    "ECB": {"days": ["THU"], "time": (12, 45)},  # ECB meetings
+    "BOE": {"days": ["THU"], "time": (12, 0)},   # BOE meetings
+    "RBA": {"days": ["TUE"], "time": (4, 30)},   # RBA meetings
+    "RBNZ": {"days": ["WED"], "time": (2, 0)},   # RBNZ meetings
+    "BOJ": {"days": ["FRI"], "time": (3, 0)},    # BOJ meetings
+}
 
-def get_optimal_crosses_for_session(hour_gmt: int) -> list:
-    """Get best cross pairs for current session"""
+def get_optimal_pairs_for_session(current_hour_gmt):
+    """Return the best pairs to trade for the current session"""
     optimal_pairs = []
-    for symbol, config in CROSS_CURRENCY_CONFIG.items():
-        start, end = config["optimal_hours"]
-        if start <= hour_gmt <= end or (start > end and (hour_gmt >= start or hour_gmt <= end)):
-            optimal_pairs.append(symbol)
+    
+    for pair, config in CROSS_CURRENCY_PAIRS.items():
+        for time_range in config["best_hours"]:
+            if time_range[0] <= current_hour_gmt < time_range[1]:
+                optimal_pairs.append(pair)
+                break
+    
     return optimal_pairs
 
-def calculate_cross_portfolio_risk(positions: dict) -> float:
-    """Calculate total portfolio risk considering correlations"""
-    total_risk = 0
-    symbols = list(positions.keys())
-    
-    # Direct risk
-    for symbol, position in positions.items():
-        total_risk += position['risk']
-    
-    # Correlation risk
-    for i, sym1 in enumerate(symbols):
-        for sym2 in symbols[i+1:]:
-            if sym1 in CROSS_CORRELATIONS and sym2 in CROSS_CORRELATIONS[sym1]:
-                correlation = CROSS_CORRELATIONS[sym1][sym2]
-                risk_adjustment = abs(correlation) * 0.5
-                total_risk *= (1 + risk_adjustment)
-    
-    return total_risk
+def calculate_position_size(pair_config, base_lot_size=0.01):
+    """Calculate position size based on pair volatility and risk multiplier"""
+    return base_lot_size * pair_config["risk_multiplier"]
 
-# Example usage in trading engine
-if __name__ == "__main__":
-    # Get current optimal crosses
-    from datetime import datetime
-    current_hour = datetime.utcnow().hour
-    optimal_crosses = get_optimal_crosses_for_session(current_hour)
-    print(f"Optimal crosses for hour {current_hour} GMT: {optimal_crosses}")
+def check_correlation_limit(open_positions, new_pair):
+    """Check if adding new pair would exceed correlation limits"""
+    if new_pair not in CORRELATION_MATRIX:
+        return True
     
-    # Get specific pair config
-    gbpjpy_config = get_cross_config("GBPJPY")
-    print(f"\nGBPJPY Configuration: {gbpjpy_config}")
+    total_correlation = 0
+    for pos in open_positions:
+        if pos in CORRELATION_MATRIX.get(new_pair, {}):
+            total_correlation += abs(CORRELATION_MATRIX[new_pair][pos])
+    
+    return total_correlation < CROSS_RISK_MANAGEMENT["max_correlation_exposure"]
