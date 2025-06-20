@@ -25,6 +25,19 @@ from collections import deque
 import warnings
 warnings.filterwarnings('ignore')
 
+# Import high-profit symbols configuration
+try:
+    from high_profit_symbols_config import (
+        ALL_HIGH_PROFIT_SYMBOLS, get_priority_symbols,
+        get_symbol_config, get_active_session_symbols,
+        EXOTIC_CURRENCY_PAIRS, CROSS_CURRENCY_PAIRS,
+        EXOTIC_METALS, EXOTIC_INDICES, COMMODITY_FUTURES
+    )
+    HIGH_PROFIT_CONFIG_LOADED = True
+except ImportError:
+    logger.warning("High-profit symbols config not found, using default symbols")
+    HIGH_PROFIT_CONFIG_LOADED = False
+
 # Logging configuration
 logging.basicConfig(
     level=logging.DEBUG,  # Changed to DEBUG for more info
@@ -54,7 +67,7 @@ CONFIG = {
     "MIN_VOLUME": 0.01,
     "AGGRESSIVE_MODE": False,
     "POSITION_INTERVAL": 600,   # 10 minutes between trades per symbol
-    "MAX_SYMBOLS": 15,         # Increased to include exotic pairs
+    "MAX_SYMBOLS": 25,         # Increased to include all high-profit pairs
     "FORCE_TRADE_INTERVAL": 600,  # Force a trade if none in 10 minutes
     "IGNORE_SPREAD": False,    # Check spread before trading
     "MIN_INDICATORS": 5,       # At least 5 indicators must be positive
@@ -186,6 +199,49 @@ class UltraTradingEngine:
         
     def _discover_symbols(self) -> List[str]:
         """Discover all tradable forex symbols including exotic pairs"""
+        # First, try to use high-profit symbols from configuration
+        if HIGH_PROFIT_CONFIG_LOADED:
+            try:
+                # Get current hour for session-based selection
+                from datetime import datetime
+                current_hour_utc = datetime.utcnow().hour
+                
+                # Get priority symbols based on profit potential
+                priority_symbols = get_priority_symbols(max_symbols=CONFIG["MAX_SYMBOLS"])
+                
+                # Get session-specific active symbols
+                session_symbols = get_active_session_symbols(current_hour_utc)
+                
+                # Combine priority and session symbols
+                combined_symbols = list(set(priority_symbols + session_symbols))
+                
+                # Now verify these exist on the broker
+                resp = requests.get(f"{self.api_base}/market/symbols", timeout=10)
+                if resp.status_code == 200:
+                    broker_symbols = resp.json()
+                    broker_symbol_names = [s.get('name', '') for s in broker_symbols]
+                    
+                    # Match our high-profit symbols with broker symbols
+                    verified_symbols = []
+                    for hp_symbol in combined_symbols:
+                        # Try exact match first
+                        if hp_symbol in broker_symbol_names:
+                            verified_symbols.append(hp_symbol)
+                        else:
+                            # Try with common suffixes
+                            for suffix in ['#', '.', '', 'cash', 'Cash']:
+                                test_symbol = hp_symbol + suffix
+                                if test_symbol in broker_symbol_names:
+                                    verified_symbols.append(test_symbol)
+                                    break
+                    
+                    if verified_symbols:
+                        logger.info(f"Loaded {len(verified_symbols)} high-profit symbols")
+                        return verified_symbols[:CONFIG["MAX_SYMBOLS"]]
+            except Exception as e:
+                logger.warning(f"Failed to load high-profit symbols: {e}")
+        
+        # Fall back to original discovery method
         try:
             resp = requests.get(f"{self.api_base}/market/symbols", timeout=10)
             if resp.status_code == 200:
@@ -307,16 +363,22 @@ class UltraTradingEngine:
         free_margin = account_status.get('free_margin', equity)
         
         # Use equity for risk calculation, not balance
-        # Different risk levels per instrument type
-        instrument_type = self._get_instrument_type(symbol)
-        risk_map = {
-            "crypto": CONFIG["RISK_PER_CRYPTO"],
-            "metal": CONFIG["RISK_PER_METAL"],
-            "index": CONFIG["RISK_PER_INDEX"],
-            "exotic": CONFIG["RISK_PER_EXOTIC"],
-            "major": CONFIG["RISK_PER_TRADE"]
-        }
-        risk_per_trade = risk_map.get(instrument_type, CONFIG["RISK_PER_TRADE"])
+        # Try to get symbol-specific risk from high-profit config first
+        if HIGH_PROFIT_CONFIG_LOADED:
+            symbol_config = get_symbol_config(symbol)
+            risk_per_trade = symbol_config.get("risk_factor", None)
+            
+        # Fall back to instrument type based risk if not found
+        if not HIGH_PROFIT_CONFIG_LOADED or risk_per_trade is None:
+            instrument_type = self._get_instrument_type(symbol)
+            risk_map = {
+                "crypto": CONFIG["RISK_PER_CRYPTO"],
+                "metal": CONFIG["RISK_PER_METAL"],
+                "index": CONFIG["RISK_PER_INDEX"],
+                "exotic": CONFIG["RISK_PER_EXOTIC"],
+                "major": CONFIG["RISK_PER_TRADE"]
+            }
+            risk_per_trade = risk_map.get(instrument_type, CONFIG["RISK_PER_TRADE"])
         risk_amount = equity * risk_per_trade
         
         # Get symbol info for proper pip calculation
@@ -434,6 +496,15 @@ class UltraTradingEngine:
     
     def _get_max_spread(self, symbol: str) -> float:
         """Get maximum allowed spread based on instrument type"""
+        # Try to get symbol-specific spread from high-profit config first
+        if HIGH_PROFIT_CONFIG_LOADED:
+            symbol_config = get_symbol_config(symbol)
+            typical_spread = symbol_config.get("typical_spread", 0)
+            if typical_spread > 0:
+                # Allow 1.5x typical spread as maximum
+                return typical_spread * 1.5
+        
+        # Fall back to instrument type based spreads
         instrument_type = self._get_instrument_type(symbol)
         if instrument_type == "crypto":
             return CONFIG["MAX_SPREAD_CRYPTO"]
