@@ -40,6 +40,20 @@ try:
     USE_EXTERNAL_CONFIG = True
 except ImportError:
     USE_EXTERNAL_CONFIG = False
+
+# Import ultra rare profit configuration
+try:
+    from ultra_rare_profit_config import (
+        ULTRA_PROFIT_SYMBOLS,
+        ULTRA_PROFIT_SETTINGS,
+        SYMBOL_STRATEGIES,
+        EXOTIC_FOREX_ULTRA,
+        SYNTHETIC_INDICES,
+        RARE_COMMODITIES
+    )
+    USE_ULTRA_CONFIG = True
+except ImportError:
+    USE_ULTRA_CONFIG = False
     # Fallback to embedded configuration
     HIGH_PROFIT_SYMBOLS = {
         # Exotic Currency Pairs - Extreme Volatility
@@ -221,7 +235,13 @@ class UltraTradingEngine:
         logger.info(f"🚀 Starting Ultra Trading Engine")
         logger.info(f"💰 Balance: ¥{self.balance:,.0f}")
         logger.info(f"📊 Trading {len(self.tradable_symbols)} symbols: {self.tradable_symbols[:5]}...")
-        if USE_EXTERNAL_CONFIG:
+        if USE_ULTRA_CONFIG:
+            logger.info(f"🔥🔥 Using ULTRA RARE PROFIT symbols configuration!")
+            logger.info(f"💎 Exotic Forex: {len(EXOTIC_FOREX_ULTRA)} pairs")
+            logger.info(f"🎯 Synthetic Indices: {len(SYNTHETIC_INDICES)} symbols") 
+            logger.info(f"🌟 Rare Commodities: {len(RARE_COMMODITIES)} symbols")
+            logger.info(f"⚡ Total Ultra Symbols: {len(ULTRA_PROFIT_SYMBOLS)}")
+        elif USE_EXTERNAL_CONFIG:
             logger.info(f"🔥 Using HIGH-PROFIT symbols configuration!")
             logger.info(f"📈 Extreme volatility: {len(EXTREME_VOLATILITY_SYMBOLS)} symbols")
             logger.info(f"📈 Very high volatility: {len(VERY_HIGH_VOLATILITY_SYMBOLS)} symbols")
@@ -255,7 +275,11 @@ class UltraTradingEngine:
     def _discover_symbols(self) -> List[str]:
         """Discover all tradable forex symbols including exotic pairs"""
         # First, try to use high-profit symbols from configuration
-        if USE_EXTERNAL_CONFIG:
+        if USE_ULTRA_CONFIG:
+            # Use ultra rare profit symbols as highest priority
+            priority_symbols = list(ULTRA_PROFIT_SYMBOLS.keys())
+            logger.info(f"🔥🔥 Using ULTRA RARE PROFIT symbols! {len(priority_symbols)} symbols loaded")
+        elif USE_EXTERNAL_CONFIG:
             priority_symbols = list(ALL_HIGH_PROFIT_SYMBOLS.keys())
         else:
             priority_symbols = list(HIGH_PROFIT_SYMBOLS.keys())

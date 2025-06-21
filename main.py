@@ -41,10 +41,19 @@ class UltraTradingSystem:
         print(f"Visualizer: {'ENABLED' if self.visualize else 'DISABLED'}")
         print(f"Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("\nHigh-Profit Symbols Active:")
-        print("- Exotic Currencies: USDTRY, USDZAR, USDMXN")
-        print("- Cross Pairs: GBPJPY, GBPNZD, EURAUD")
-        print("- Metals: XAUUSD, XPDUSD, XPTUSD")
-        print("- Indices: US30, RUSSELL2K, MDAX")
+        
+        # Check if ultra config is available
+        try:
+            from ultra_rare_profit_config import EXOTIC_FOREX_ULTRA, SYNTHETIC_INDICES, RARE_COMMODITIES
+            print("🔥🔥 ULTRA RARE PROFIT CONFIGURATION DETECTED! 🔥🔥")
+            print(f"- Ultra Exotic Forex: {', '.join(list(EXOTIC_FOREX_ULTRA.keys())[:3])}...")
+            print(f"- Synthetic Indices: {', '.join(list(SYNTHETIC_INDICES.keys())[:3])}...")
+            print(f"- Rare Commodities: {', '.join(list(RARE_COMMODITIES.keys())[:3])}...")
+        except ImportError:
+            print("- Exotic Currencies: USDTRY, USDZAR, USDMXN")
+            print("- Cross Pairs: GBPJPY, GBPNZD, EURAUD")
+            print("- Metals: XAUUSD, XPDUSD, XPTUSD")
+            print("- Indices: US30, RUSSELL2K, MDAX")
         print("\nPress Ctrl+C to shutdown\n")
         print("=" * 70)
         
