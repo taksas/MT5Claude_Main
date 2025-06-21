@@ -130,6 +130,162 @@ VERY_HIGH_VOLATILITY_SYMBOLS = {
     }
 }
 
+# CRYPTO CFDs - 24/7 EXTREME VOLATILITY
+CRYPTO_CFDS = {
+    "BTCUSD": {
+        "symbol": "BTCUSD",
+        "avg_daily_percent": 5.0,
+        "typical_spread": 30,
+        "risk_per_trade": 0.004,
+        "lot_size": 0.01,
+        "max_spread": 50,
+        "best_hours": "24/7",
+        "volatility_factor": 5.0,
+        "weekend_trading": True,
+        "min_confidence": 0.75
+    },
+    "ETHUSD": {
+        "symbol": "ETHUSD",
+        "avg_daily_percent": 6.0,
+        "typical_spread": 2.5,
+        "risk_per_trade": 0.003,
+        "lot_size": 0.01,
+        "max_spread": 5.0,
+        "best_hours": "24/7",
+        "volatility_factor": 6.0,
+        "weekend_trading": True,
+        "min_confidence": 0.78
+    },
+    "DOGEUSD": {
+        "symbol": "DOGEUSD",
+        "avg_daily_percent": 10.0,
+        "typical_spread": 0.0002,
+        "risk_per_trade": 0.002,
+        "lot_size": 100,
+        "max_spread": 0.0005,
+        "best_hours": "24/7",
+        "volatility_factor": 10.0,
+        "social_media_driven": True,
+        "min_confidence": 0.85
+    },
+    "AVAXUSD": {
+        "symbol": "AVAXUSD",
+        "avg_daily_percent": 10.0,
+        "typical_spread": 0.5,
+        "risk_per_trade": 0.002,
+        "lot_size": 0.10,
+        "max_spread": 1.0,
+        "best_hours": "24/7",
+        "volatility_factor": 10.0,
+        "defi_sensitive": True,
+        "min_confidence": 0.85
+    }
+}
+
+# COMMODITY CFDs - EXTREME MOVES
+COMMODITY_CFDS = {
+    "XPDUSD": {  # Palladium
+        "symbol": "XPDUSD",
+        "avg_daily_percent": 4.0,
+        "typical_spread": 5.0,
+        "risk_per_trade": 0.004,
+        "lot_size": 0.01,
+        "max_spread": 10.0,
+        "best_hours": "08:00-17:00",
+        "volatility_factor": 4.0,
+        "industrial_demand": True,
+        "min_confidence": 0.75
+    },
+    "XPTUSD": {  # Platinum
+        "symbol": "XPTUSD",
+        "avg_daily_percent": 3.0,
+        "typical_spread": 3.0,
+        "risk_per_trade": 0.005,
+        "lot_size": 0.01,
+        "max_spread": 6.0,
+        "best_hours": "08:00-17:00",
+        "volatility_factor": 3.0,
+        "auto_industry": True,
+        "min_confidence": 0.72
+    },
+    "COFFEE": {
+        "symbol": "COFFEE",
+        "avg_daily_percent": 3.0,
+        "typical_spread": 0.5,
+        "risk_per_trade": 0.005,
+        "lot_size": 0.10,
+        "max_spread": 1.0,
+        "best_hours": "13:30-20:00",
+        "volatility_factor": 3.0,
+        "weather_sensitive": True,
+        "min_confidence": 0.72
+    },
+    "XNIUSD": {  # Nickel
+        "symbol": "XNIUSD",
+        "avg_daily_percent": 3.5,
+        "typical_spread": 30,
+        "risk_per_trade": 0.004,
+        "lot_size": 0.01,
+        "max_spread": 50,
+        "best_hours": "01:00-09:00",
+        "volatility_factor": 3.5,
+        "ev_battery_demand": True,
+        "min_confidence": 0.74
+    }
+}
+
+# SYNTHETIC INDICES - 24/7 STATISTICAL VOLATILITY
+SYNTHETIC_INDICES = {
+    "V100": {  # Volatility 100
+        "symbol": "V100",
+        "avg_hourly_percent": 5.0,
+        "typical_spread": 0.3,
+        "risk_per_trade": 0.002,
+        "lot_size": 0.001,
+        "max_spread": 0.5,
+        "best_hours": "24/7",
+        "volatility_factor": 10.0,
+        "synthetic": True,
+        "min_confidence": 0.80
+    },
+    "V75": {  # Volatility 75
+        "symbol": "V75",
+        "avg_hourly_percent": 4.0,
+        "typical_spread": 0.2,
+        "risk_per_trade": 0.003,
+        "lot_size": 0.001,
+        "max_spread": 0.4,
+        "best_hours": "24/7",
+        "volatility_factor": 7.5,
+        "synthetic": True,
+        "min_confidence": 0.75
+    },
+    "CRASH1000": {
+        "symbol": "CRASH1000",
+        "avg_spike_percent": 30.0,
+        "typical_spread": 0.8,
+        "risk_per_trade": 0.001,
+        "lot_size": 0.001,
+        "max_spread": 1.5,
+        "best_hours": "24/7",
+        "volatility_factor": 15.0,
+        "crash_only": True,
+        "min_confidence": 0.90
+    },
+    "BOOM1000": {
+        "symbol": "BOOM1000",
+        "avg_spike_percent": 30.0,
+        "typical_spread": 0.8,
+        "risk_per_trade": 0.001,
+        "lot_size": 0.001,
+        "max_spread": 1.5,
+        "best_hours": "24/7",
+        "volatility_factor": 15.0,
+        "boom_only": True,
+        "min_confidence": 0.90
+    }
+}
+
 # TIER 3 - HIGH VOLATILITY (100-500 pips or 2-3% daily)
 HIGH_VOLATILITY_SYMBOLS = {
     "US2000": {  # Russell 2000
@@ -186,7 +342,10 @@ HIGH_VOLATILITY_SYMBOLS = {
 ALL_HIGH_PROFIT_SYMBOLS = {
     **EXTREME_VOLATILITY_SYMBOLS,
     **VERY_HIGH_VOLATILITY_SYMBOLS,
-    **HIGH_VOLATILITY_SYMBOLS
+    **HIGH_VOLATILITY_SYMBOLS,
+    **CRYPTO_CFDS,
+    **COMMODITY_CFDS,
+    **SYNTHETIC_INDICES
 }
 
 # Trading session times (GMT)
@@ -225,6 +384,11 @@ SPECIAL_HANDLING = {
     "COMMODITY_CORRELATED": ["USDNOK", "AUDNZD", "USDZAR"],  # Check oil/gold
     "RISK_SENTIMENT": ["EURJPY", "GBPJPY", "VIX"],  # Check market sentiment
     "SEASONAL": ["NATGAS", "COFFEE", "WHEAT"],  # Check seasonal patterns
+    "CRYPTO_24_7": ["BTCUSD", "ETHUSD", "DOGEUSD", "AVAXUSD"],  # Weekend trading
+    "PRECIOUS_METALS": ["XPDUSD", "XPTUSD", "XAGUSD", "XAUUSD"],  # Industrial demand
+    "SYNTHETIC_24_7": ["V100", "V75", "CRASH1000", "BOOM1000"],  # Statistical volatility
+    "WEATHER_SENSITIVE": ["COFFEE", "NATGAS", "WHEAT"],  # Weather impacts
+    "EV_SENSITIVE": ["XNIUSD", "XPDUSD", "LITHIUM"],  # Electric vehicle demand
 }
 
 # Integration function for ultra_trading_engine
