@@ -42,18 +42,11 @@ class UltraTradingSystem:
         print(f"Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("\nHigh-Profit Symbols Active:")
         
-        # Check if ultra config is available
-        try:
-            from ultra_rare_profit_config import EXOTIC_FOREX_ULTRA, SYNTHETIC_INDICES, RARE_COMMODITIES
-            print("🔥🔥 ULTRA RARE PROFIT CONFIGURATION DETECTED! 🔥🔥")
-            print(f"- Ultra Exotic Forex: {', '.join(list(EXOTIC_FOREX_ULTRA.keys())[:3])}...")
-            print(f"- Synthetic Indices: {', '.join(list(SYNTHETIC_INDICES.keys())[:3])}...")
-            print(f"- Rare Commodities: {', '.join(list(RARE_COMMODITIES.keys())[:3])}...")
-        except ImportError:
-            print("- Exotic Currencies: USDTRY, USDZAR, USDMXN")
-            print("- Cross Pairs: GBPJPY, GBPNZD, EURAUD")
-            print("- Metals: XAUUSD, XPDUSD, XPTUSD")
-            print("- Indices: US30, RUSSELL2K, MDAX")
+        print("🔥 HIGH-PROFIT SYMBOLS ACTIVE:")
+        print("- Exotic Currencies: USDTRY, USDZAR, USDMXN")
+        print("- Cross Pairs: GBPJPY, GBPNZD, EURAUD")
+        print("- Metals: XAUUSD, XPDUSD, XPTUSD")
+        print("- Indices: US30, RUSSELL2K, MDAX")
         print("\nPress Ctrl+C to shutdown\n")
         print("=" * 70)
         
@@ -65,13 +58,13 @@ class UltraTradingSystem:
             if self.mode == 'engine' or self.mode == 'both':
                 # Import and run engine
                 logger.info("Starting Ultra Trading Engine...")
-                from ultra_trading_engine import UltraTradingEngine
+                from components.ultra_trading_engine import UltraTradingEngine
                 self.engine = UltraTradingEngine()
                 
                 if self.visualize and self.mode == 'engine':
                     # Run engine with visualizer in same process
                     logger.info("Starting Visualizer...")
-                    from visualizer import TradingVisualizer
+                    from components.visualizer import TradingVisualizer
                     self.visualizer = TradingVisualizer()
                     
                     # Start visualizer in thread
@@ -86,7 +79,7 @@ class UltraTradingSystem:
             elif self.mode == 'visualizer':
                 # Run visualizer only
                 logger.info("Starting Visualizer Only Mode...")
-                from visualizer import TradingVisualizer
+                from components.visualizer import TradingVisualizer
                 self.visualizer = TradingVisualizer()
                 self.visualizer.start()
                 
@@ -98,13 +91,13 @@ class UltraTradingSystem:
                 
                 # Engine process
                 def run_engine(queue):
-                    from ultra_trading_engine import UltraTradingEngine
+                    from components.ultra_trading_engine import UltraTradingEngine
                     engine = UltraTradingEngine(signal_queue=queue)
                     engine.start()
                 
                 # Visualizer process
                 def run_visualizer(queue):
-                    from visualizer import TradingVisualizer
+                    from components.visualizer import TradingVisualizer
                     viz = TradingVisualizer(signal_queue=queue)
                     viz.start()
                 

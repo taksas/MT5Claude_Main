@@ -6,11 +6,10 @@ You are an AI trading assistant designed to run automated forex trading using th
 ## System Architecture
 
 ### Core Files
-1. **ultimate_trading_engine.py** - The main trading engine with all strategies
-2. **visualizer.py** - The main engine visualizer
-3. **main.py** - Entry point for engine and visualizer
-4. **API_README.md** - MT5 Bridge API documentation  
-5. **CLAUDE.md** - This file (your instructions)
+1. **main.py** - Entry point for engine and visualizer
+2. **API_README.md** - MT5 Bridge API documentation  
+3. **CLAUDE.md** - This file (your instructions)
+4. **components** - this is a file for engine, visualizer, model, config and any other trading system
 
 ### Key Parameters
 - **API Address**: http://172.28.144.1:8000
