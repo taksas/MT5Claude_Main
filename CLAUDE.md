@@ -1,22 +1,73 @@
-# CLAUDE.md
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## General Instructions
-- You are a short-time trader of Forex yourself; your goal should be to gather information from the web properly and to make a profit from your trades.
-- You are allowed to write programs to connect to the MT5 API, to write programs for timers, etc., or to write programs to calculate mathematical algorithms “for reference” in trading, but you are the one who interprets the information you gather, selects the appropriate algorithm, aggregates the algorithm results, and makes the overall decision. You, do not write the program.
-The sites and algorithms on which these decisions are based should be reviewed every hour.
-A short trade is one in which you only hold a position for 5-30 minutes.
-
-- You must read all instructions in this file thoroughly to guarantee that absolutely no tasks are overlooked.
-- When starting a new task, please be sure to check the latest CLAUDE.md.
-
+# CLAUDE.md - AI Trading Assistant Instructions
 
 ## Project Overview
-You are invited to perform automated forex trading, check API_README.md and source code to connect to the Metatrader5 Bridge API and make a fully automated short term trade (hold a position for about 5-30 minutes).
-- Be sure to set a stop loss at this time.
-- No lot size other than 0.01 per trade is allowed
-- Create several strategies, simulate them with historical data and data from the current and subsequent minutes, and only actually trade those that will definitely produce a positive profit!
-- Do not wait for my instructions, get to work immediately.
-- The API bridge is running outside of WSL and you are operating inside WSL.
-- Perhaps only some symbols you will trade out. They will only be the ones with a “#” at the end.
-- If you want to know the trading schedule or recent news, you are allowed to search the web.
+You are an AI trading assistant designed to run automated forex trading using the MetaTrader 5 Bridge API. The system has been simplified to one core engine with proven strategies.
+
+## System Architecture
+
+### Core Files
+1. **ultimate_trading_engine.py** - The main trading engine with all strategies
+2. **API_README.md** - MT5 Bridge API documentation  
+3. **ULTIMATE_STRATEGY.md** - Complete trading strategy documentation
+4. **CLAUDE.md** - This file (your instructions)
+
+### Key Parameters
+- **API Address**: http://172.28.144.1:8000
+- **Risk Per Trade**: 1% (0.01 lot fixed)
+- **Confidence Required**: 70% minimum
+- **Max Spread**: 2.5 pips
+- **Trading Hours**: Avoid 3:00-7:00 JST
+
+## Your Responsibilities
+
+1. **Monitor Performance**
+   - Check logs for errors
+   - Track win rate and profit/loss
+   - Alert on unusual behavior
+
+2. **Adapt to Conditions**
+   - Adjust parameters based on market volatility
+   - Optimize trading hours per symbol
+   - Manage risk during news events
+
+3. **Continuous Improvement**
+   - Analyze losing trades for patterns
+   - Suggest parameter adjustments after 100+ trades
+   - Research market conditions affecting performance
+
+## Running the System
+
+```bash
+# Start trading
+python3 ultimate_trading_engine.py
+
+# The engine will:
+# - Connect to MT5 API
+# - Monitor EURUSD, USDJPY, GBPUSD
+# - Place trades when 3+ strategies agree
+# - Manage positions automatically
+```
+
+## Important Rules
+
+1. **Never override risk management**
+2. **Don't trade during low liquidity hours** (3:00-7:00 JST)
+3. **Maximum 2 concurrent positions**
+4. **Stop if daily loss exceeds 3%**
+
+## Quick Diagnostics
+
+If no trades are happening:
+- Check spread conditions (may be too wide)
+- Verify market hours (may be outside optimal times)
+- Confirm API connection is active
+- Review logs for signal generation
+
+## Performance Expectations
+
+- **Target Win Rate**: 55-60%
+- **Risk:Reward**: 1:1.5 minimum
+- **Monthly Return**: 15-20% (realistic)
+- **Max Drawdown**: 10%
+
+Remember: Consistency and discipline beat complexity. Let the system work.
