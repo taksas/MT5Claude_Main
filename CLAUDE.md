@@ -43,8 +43,6 @@ python3 main.py
 
 # The engine will:
 # - Connect to MT5 API
-# - Monitor EURUSD, USDJPY, GBPUSD
-# - Place trades when 3+ strategies agree
 # - Manage positions automatically
 
 # The visualizer will:
