@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from .trading_models import Signal, SignalType
-from .indicators import UltraIntelligentIndicators
+from .indicators import QuantumUltraIntelligentIndicators, quantum_indicators
 from .symbol_utils import SymbolUtils
 from .trading_config import CONFIG, get_symbol_config
 
@@ -18,7 +18,7 @@ logger = logging.getLogger('TradingStrategy')
 
 class TradingStrategy:
     def __init__(self):
-        self.indicators = UltraIntelligentIndicators()
+        self.indicators = quantum_indicators  # Use global quantum instance
         self.symbol_utils = SymbolUtils()
         
         # Category weights for signal generation
