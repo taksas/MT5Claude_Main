@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from .trading_models import Signal, SignalType
-from .indicators import TechnicalIndicators
+from .indicators import UltraIntelligentIndicators
 from .symbol_utils import SymbolUtils
 from .trading_config import CONFIG, get_symbol_config
 
@@ -18,7 +18,7 @@ logger = logging.getLogger('TradingStrategy')
 
 class TradingStrategy:
     def __init__(self):
-        self.indicators = TechnicalIndicators()
+        self.indicators = UltraIntelligentIndicators()
         self.symbol_utils = SymbolUtils()
         
         # Category weights for signal generation
@@ -36,179 +36,157 @@ class TradingStrategy:
         }
         
     def analyze_ultra(self, symbol: str, df: pd.DataFrame, current_price: float) -> Optional[Signal]:
-        """Analyze market with 100 indicators for ultra-precise signals"""
+        """Analyze market with ultra-intelligent indicators for high-precision signals"""
         try:
-            # Calculate all indicators
-            indicators = self.indicators.calculate_all_indicators(df, current_price)
+            # Calculate ultra-intelligent indicators
+            analysis = self.indicators.calculate_ultra_indicators(df, current_price)
             
-            # Initialize scores
-            buy_score = 0
-            sell_score = 0
-            positive_indicators = []
-            negative_indicators = []
+            # Extract key components
+            regime = analysis['regime']
+            composite_signal = analysis['composite_signal']
+            patterns = analysis.get('patterns', [])
+            sentiment = analysis.get('sentiment', {})
+            predictions = analysis.get('predictions', {})
+            mtf = analysis.get('multi_timeframe', {})
+            stats = analysis.get('statistics', {})
+            confidence_score = analysis.get('confidence', 0.5)
             
-            # Price Action Analysis
-            price_action_score = self._evaluate_price_action(indicators)
-            if price_action_score > 0:
-                buy_score += price_action_score * self.category_weights['price_action']
-                positive_indicators.extend(['pin_bar_bull', 'engulfing_bull', 'hammer'])
-            elif price_action_score < 0:
-                sell_score += abs(price_action_score) * self.category_weights['price_action']
-                negative_indicators.extend(['pin_bar_bear', 'engulfing_bear', 'hanging_man'])
-            
-            # Chart Patterns
-            chart_score = self._evaluate_chart_patterns(indicators)
-            if chart_score > 0:
-                buy_score += chart_score * self.category_weights['chart_patterns']
-                positive_indicators.extend(['double_bottom', 'falling_wedge'])
-            elif chart_score < 0:
-                sell_score += abs(chart_score) * self.category_weights['chart_patterns']
-                negative_indicators.extend(['double_top', 'rising_wedge'])
-            
-            # Mathematical Indicators
-            math_score = self._evaluate_mathematical(indicators)
-            if math_score > 0:
-                buy_score += math_score * self.category_weights['mathematical']
-                positive_indicators.extend(['fib_support', 'pivot_support'])
-            elif math_score < 0:
-                sell_score += abs(math_score) * self.category_weights['mathematical']
-                negative_indicators.extend(['fib_resistance', 'pivot_resistance'])
-            
-            # Volatility Analysis
-            volatility_score = self._evaluate_volatility(indicators)
-            if volatility_score > 0:
-                buy_score += volatility_score * self.category_weights['volatility']
-                positive_indicators.append('volatility_expansion')
-            elif volatility_score < 0:
-                sell_score += abs(volatility_score) * self.category_weights['volatility']
-                negative_indicators.append('volatility_contraction')
-            
-            # Market Structure
-            structure_score = self._evaluate_market_structure(indicators)
-            if structure_score > 0:
-                buy_score += structure_score * self.category_weights['market_structure']
-                positive_indicators.extend(['structure_break_up', 'higher_highs'])
-            elif structure_score < 0:
-                sell_score += abs(structure_score) * self.category_weights['market_structure']
-                negative_indicators.extend(['structure_break_down', 'lower_lows'])
-            
-            # Momentum Analysis
-            momentum_score = self._evaluate_momentum(indicators)
-            if momentum_score > 0:
-                buy_score += momentum_score * self.category_weights['momentum']
-                positive_indicators.extend(['positive_momentum', 'oversold_bounce'])
-            elif momentum_score < 0:
-                sell_score += abs(momentum_score) * self.category_weights['momentum']
-                negative_indicators.extend(['negative_momentum', 'overbought_reversal'])
-            
-            # Volume Analysis
-            volume_score = self._evaluate_volume(indicators)
-            if volume_score > 0:
-                buy_score += volume_score * self.category_weights['volume']
-                positive_indicators.append('accumulation')
-            elif volume_score < 0:
-                sell_score += abs(volume_score) * self.category_weights['volume']
-                negative_indicators.append('distribution')
-            
-            # Time-Based Patterns
-            time_score = self._evaluate_time_patterns(indicators)
-            if time_score > 0:
-                buy_score += time_score * self.category_weights['time_based']
-                positive_indicators.append('optimal_time')
-            elif time_score < 0:
-                sell_score += abs(time_score) * self.category_weights['time_based']
-                negative_indicators.append('adverse_time')
-            
-            # Statistical Analysis
-            stat_score = self._evaluate_statistical(indicators)
-            if stat_score > 0:
-                buy_score += stat_score * self.category_weights['statistical']
-                positive_indicators.append('mean_reversion_up')
-            elif stat_score < 0:
-                sell_score += abs(stat_score) * self.category_weights['statistical']
-                negative_indicators.append('mean_reversion_down')
-            
-            # Composite Indicators
-            composite_score = self._evaluate_composite(indicators)
-            if composite_score > 0:
-                buy_score += composite_score * self.category_weights['composite']
-                positive_indicators.extend(['macd_bull', 'rsi_oversold', 'ichimoku_bull'])
-            elif composite_score < 0:
-                sell_score += abs(composite_score) * self.category_weights['composite']
-                negative_indicators.extend(['macd_bear', 'rsi_overbought', 'ichimoku_bear'])
-            
-            # Calculate total scores
-            total_buy = buy_score
-            total_sell = sell_score
-            total_indicators = len(positive_indicators) + len(negative_indicators)
-            
-            # Determine signal
-            signal_type = None
-            confidence = 0
-            
-            if total_buy > total_sell and len(positive_indicators) >= CONFIG["MIN_INDICATORS"]:
-                signal_type = SignalType.BUY
-                confidence = min(total_buy / (total_buy + total_sell) if (total_buy + total_sell) > 0 else 0, 0.95)
-            elif total_sell > total_buy and len(negative_indicators) >= CONFIG["MIN_INDICATORS"]:
-                signal_type = SignalType.SELL
-                confidence = min(total_sell / (total_buy + total_sell) if (total_buy + total_sell) > 0 else 0, 0.95)
-            
-            # Check minimum confidence
-            if signal_type and confidence >= CONFIG["MIN_CONFIDENCE"]:
-                # Calculate stop loss and take profit
-                symbol_config = get_symbol_config(symbol)
-                instrument_type = self.symbol_utils.get_instrument_type(symbol)
+            # Check if we have a valid signal from the neural network fusion
+            if composite_signal['signal'] in ['strong_buy', 'buy', 'strong_sell', 'sell']:
+                # Validate signal with additional checks
                 
-                atr = indicators.get('atr', current_price * 0.001)
+                # 1. Regime alignment check
+                regime_aligned = False
+                if composite_signal['signal'] in ['strong_buy', 'buy'] and regime['trend'] == 'bullish':
+                    regime_aligned = True
+                elif composite_signal['signal'] in ['strong_sell', 'sell'] and regime['trend'] == 'bearish':
+                    regime_aligned = True
                 
-                # Adjust for instrument type
-                if instrument_type == 'exotic':
-                    sl_distance = atr * 2.5
-                    tp_distance = atr * 5.0
-                elif instrument_type == 'metal':
-                    sl_distance = atr * 2.0
-                    tp_distance = atr * 4.0
-                elif instrument_type == 'crypto':
-                    sl_distance = atr * 3.0
-                    tp_distance = atr * 6.0
-                elif instrument_type == 'index':
-                    sl_distance = atr * 1.5
-                    tp_distance = atr * 3.0
-                else:  # Major pairs
-                    sl_distance = atr * 2.0
-                    tp_distance = atr * 3.0
+                # 2. Multi-timeframe confluence check
+                mtf_aligned = mtf.get('aligned', False)
                 
-                if signal_type == SignalType.BUY:
-                    sl = current_price - sl_distance
-                    tp = current_price + tp_distance
-                    reason = f"BUY: {len(positive_indicators)} bullish indicators"
-                else:
-                    sl = current_price + sl_distance
-                    tp = current_price - tp_distance
-                    reason = f"SELL: {len(negative_indicators)} bearish indicators"
+                # 3. Pattern confirmation
+                pattern_confirmed = False
+                if patterns:
+                    bullish_patterns = [p for p in patterns if p['direction'] == 'bullish']
+                    bearish_patterns = [p for p in patterns if p['direction'] == 'bearish']
+                    
+                    if composite_signal['signal'] in ['strong_buy', 'buy'] and len(bullish_patterns) > len(bearish_patterns):
+                        pattern_confirmed = True
+                    elif composite_signal['signal'] in ['strong_sell', 'sell'] and len(bearish_patterns) > len(bullish_patterns):
+                        pattern_confirmed = True
                 
-                # Calculate quality score
-                quality = self._calculate_signal_quality(
-                    confidence, 
-                    total_indicators, 
-                    indicators, 
-                    instrument_type
-                )
+                # 4. Market conditions check
+                suitable_volatility = regime['volatility'] in ['medium', 'high']  # Avoid low volatility
+                suitable_momentum = regime['momentum'] not in ['neutral']  # Avoid neutral momentum
                 
-                return Signal(
-                    type=signal_type,
-                    confidence=confidence,
-                    entry=current_price,
-                    sl=sl,
-                    tp=tp,
-                    reason=reason,
-                    strategies={
-                        'buy_score': total_buy,
-                        'sell_score': total_sell,
-                        'indicators': total_indicators
-                    },
-                    quality=quality
-                )
+                # Calculate final validation score
+                validation_score = 0
+                if regime_aligned: validation_score += 0.3
+                if mtf_aligned: validation_score += 0.2
+                if pattern_confirmed: validation_score += 0.2
+                if suitable_volatility: validation_score += 0.15
+                if suitable_momentum: validation_score += 0.15
+                
+                # Combine neural confidence with validation
+                final_confidence = composite_signal['confidence'] * 0.7 + validation_score * 0.3
+                
+                # Enhanced reason building
+                reasons = []
+                if regime_aligned:
+                    reasons.append(f"{regime['trend'].upper()} regime")
+                if mtf_aligned:
+                    reasons.append("MTF confluence")
+                if pattern_confirmed:
+                    top_pattern = patterns[0]['pattern_type'] if patterns else ""
+                    reasons.append(f"{top_pattern} pattern")
+                if predictions.get('ml_signal') == composite_signal['signal']:
+                    reasons.append("ML prediction aligned")
+                
+                # Feature importance
+                top_feature = max(composite_signal['feature_importance'].items(), key=lambda x: x[1])[0]
+                reasons.append(f"{top_feature} dominant")
+                
+                # Determine signal type and check confidence
+                signal_type = None
+                if composite_signal['signal'] in ['strong_buy', 'buy']:
+                    signal_type = SignalType.BUY
+                elif composite_signal['signal'] in ['strong_sell', 'sell']:
+                    signal_type = SignalType.SELL
+                
+                # Check minimum confidence
+                if signal_type and final_confidence >= CONFIG["MIN_CONFIDENCE"]:
+                    # Calculate stop loss and take profit
+                    symbol_config = get_symbol_config(symbol)
+                    instrument_type = self.symbol_utils.get_instrument_type(symbol)
+                    
+                    # Try to get ATR from traditional indicators
+                    traditional = analysis.get('traditional', {})
+                    atr = traditional.get('adaptive_atr', current_price * 0.001)
+                    
+                    # Check if patterns provide targets
+                    pattern_sl = None
+                    pattern_tp = None
+                    if patterns:
+                        relevant_patterns = [p for p in patterns if 
+                                           (signal_type == SignalType.BUY and p['direction'] == 'bullish') or
+                                           (signal_type == SignalType.SELL and p['direction'] == 'bearish')]
+                        if relevant_patterns:
+                            # Use the most confident pattern's targets
+                            best_pattern = relevant_patterns[0]
+                            pattern_sl = best_pattern['stop_loss']
+                            pattern_tp = best_pattern['target_price']
+                    
+                    # Adjust for instrument type
+                    if instrument_type == 'exotic':
+                        sl_distance = atr * 2.5
+                        tp_distance = atr * 5.0
+                    elif instrument_type == 'metal':
+                        sl_distance = atr * 2.0
+                        tp_distance = atr * 4.0
+                    elif instrument_type == 'crypto':
+                        sl_distance = atr * 3.0
+                        tp_distance = atr * 6.0
+                    elif instrument_type == 'index':
+                        sl_distance = atr * 1.5
+                        tp_distance = atr * 3.0
+                    else:  # Major pairs
+                        sl_distance = atr * 2.0
+                        tp_distance = atr * 3.0
+                    
+                    # Calculate SL/TP with pattern priority
+                    if signal_type == SignalType.BUY:
+                        sl = pattern_sl if pattern_sl else current_price - sl_distance
+                        tp = pattern_tp if pattern_tp else current_price + tp_distance
+                        reason = f"ULTRA BUY: {', '.join(reasons[:3])}"
+                    else:
+                        sl = pattern_sl if pattern_sl else current_price + sl_distance
+                        tp = pattern_tp if pattern_tp else current_price - tp_distance
+                        reason = f"ULTRA SELL: {', '.join(reasons[:3])}"
+                    
+                    # Calculate ultra quality score
+                    quality = self._calculate_ultra_signal_quality(
+                        final_confidence,
+                        regime,
+                        patterns,
+                        composite_signal
+                    )
+                    
+                    return Signal(
+                        type=signal_type,
+                        confidence=final_confidence,
+                        entry=current_price,
+                        sl=sl,
+                        tp=tp,
+                        reason=reason,
+                        strategies={
+                            'regime': regime,
+                            'composite': composite_signal,
+                            'patterns': len(patterns),
+                            'mtf_aligned': mtf_aligned
+                        },
+                        quality=quality
+                    )
             
             return None
             
@@ -525,9 +503,39 @@ class TradingStrategy:
         
         return score
     
+    def _calculate_ultra_signal_quality(self, confidence: float, regime: Dict[str, Any],
+                                      patterns: list, composite_signal: Dict[str, Any]) -> float:
+        """Calculate ultra signal quality using intelligent metrics"""
+        quality = confidence
+        
+        # Regime quality multiplier
+        if regime['trend'] != 'ranging':
+            quality *= 1.1
+        if regime['volatility'] == 'medium':
+            quality *= 1.05
+        elif regime['volatility'] == 'high':
+            quality *= 0.95
+        
+        # Pattern confirmation bonus
+        if patterns:
+            avg_pattern_conf = sum(p['confidence'] for p in patterns) / len(patterns)
+            quality *= (0.9 + avg_pattern_conf * 0.2)
+        
+        # Composite signal strength
+        signal_strength = composite_signal.get('strength', 0.5)
+        if signal_strength > 0.8 or signal_strength < 0.2:
+            quality *= 1.15  # Strong signals
+        elif 0.3 < signal_strength < 0.7:
+            quality *= 0.9   # Weak signals
+        
+        # Regime confidence boost
+        quality *= (0.8 + regime['confidence'] * 0.2)
+        
+        return min(quality, 1.0)
+    
     def _calculate_signal_quality(self, confidence: float, total_indicators: int, 
                                 indicators: Dict[str, Any], instrument_type: str) -> float:
-        """Calculate overall signal quality"""
+        """Calculate overall signal quality (legacy method for compatibility)"""
         quality = confidence
         
         # Adjust for number of confirming indicators

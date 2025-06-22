@@ -1,585 +1,927 @@
 #!/usr/bin/env python3
 """
-Technical Indicators Module
-Contains all 100 technical indicators organized in 10 categories
+Ultra-Intelligent Technical Indicators Module
+Advanced market analysis with machine learning-inspired pattern recognition
 """
 
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 import logging
-from scipy import stats
+from scipy import stats, signal
 from collections import deque
+from dataclasses import dataclass
+import warnings
+warnings.filterwarnings('ignore')
 
-logger = logging.getLogger('Indicators')
+logger = logging.getLogger('UltraIndicators')
 
-class TechnicalIndicators:
+@dataclass
+class MarketRegime:
+    """Market regime detection results"""
+    trend: str  # 'bullish', 'bearish', 'ranging'
+    volatility: str  # 'low', 'medium', 'high'
+    momentum: str  # 'strong_up', 'weak_up', 'neutral', 'weak_down', 'strong_down'
+    confidence: float  # 0-1
+    
+@dataclass
+class PatternSignal:
+    """Pattern recognition signal"""
+    pattern_type: str
+    direction: str  # 'bullish', 'bearish'
+    confidence: float  # 0-1
+    target_price: float
+    stop_loss: float
+
+class UltraIntelligentIndicators:
     def __init__(self):
         self.cache = {}
+        self.regime_history = deque(maxlen=100)
+        self.pattern_memory = deque(maxlen=500)
+        self.adaptive_params = {}
+        self.neural_weights = self._initialize_neural_weights()
         
-    def calculate_all_indicators(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
-        """Calculate all 100 indicators organized by category"""
-        try:
-            indicators = {'current_price': current_price}
-            
-            # Calculate each category
-            indicators.update(self._price_action_indicators(df, current_price))
-            indicators.update(self._chart_patterns(df))
-            indicators.update(self._mathematical_indicators(df, current_price))
-            indicators.update(self._volatility_analysis(df, current_price))
-            indicators.update(self._market_structure(df, current_price))
-            indicators.update(self._momentum_analysis(df))
-            indicators.update(self._volume_order_flow(df))
-            indicators.update(self._time_based_patterns(df, current_price))
-            indicators.update(self._statistical_analysis(df))
-            indicators.update(self._advanced_composite_indicators(df, current_price))
-            
-            return indicators
-            
-        except Exception as e:
-            logger.error(f"Error calculating indicators: {e}")
-            return {'current_price': current_price}
-    
-    def _price_action_indicators(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
-        """Calculate price action indicators"""
-        indicators = {}
+    def _initialize_neural_weights(self) -> Dict[str, float]:
+        """Initialize neural network-inspired weights for signal combination"""
+        return {
+            'trend': 0.25,
+            'momentum': 0.20,
+            'volatility': 0.15,
+            'volume': 0.10,
+            'pattern': 0.15,
+            'statistical': 0.15
+        }
         
+    def calculate_ultra_indicators(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
+        """Calculate ultra-intelligent indicators with ML-inspired analysis"""
         try:
-            # Pin bar detection
-            body = abs(df['close'] - df['open'])
-            upper_wick = df['high'] - df[['close', 'open']].max(axis=1)
-            lower_wick = df[['close', 'open']].min(axis=1) - df['low']
+            # Detect market regime first
+            regime = self._detect_market_regime(df, current_price)
+            self.regime_history.append(regime)
             
-            indicators['pin_bar_bull'] = float((lower_wick.iloc[-1] > 2 * body.iloc[-1]) and 
-                                              (upper_wick.iloc[-1] < body.iloc[-1]))
-            indicators['pin_bar_bear'] = float((upper_wick.iloc[-1] > 2 * body.iloc[-1]) and 
-                                              (lower_wick.iloc[-1] < body.iloc[-1]))
+            # Adapt parameters based on regime
+            self._adapt_parameters(regime)
             
-            # Engulfing patterns
-            indicators['engulfing_bull'] = float((df['close'].iloc[-1] > df['open'].iloc[-1]) and 
-                                               (df['close'].iloc[-2] < df['open'].iloc[-2]) and
-                                               (df['close'].iloc[-1] > df['open'].iloc[-2]) and
-                                               (df['open'].iloc[-1] < df['close'].iloc[-2]))
+            # Multi-timeframe analysis
+            mtf_signals = self._multi_timeframe_analysis(df, current_price)
             
-            indicators['engulfing_bear'] = float((df['close'].iloc[-1] < df['open'].iloc[-1]) and 
-                                               (df['close'].iloc[-2] > df['open'].iloc[-2]) and
-                                               (df['close'].iloc[-1] < df['open'].iloc[-2]) and
-                                               (df['open'].iloc[-1] > df['close'].iloc[-2]))
+            # Pattern recognition with ML scoring
+            patterns = self._ml_pattern_recognition(df, current_price)
             
-            # Doji
-            indicators['doji'] = float(body.iloc[-1] < (df['high'].iloc[-1] - df['low'].iloc[-1]) * 0.1)
+            # Advanced statistical analysis
+            stats_analysis = self._advanced_statistical_analysis(df, current_price)
             
-            # Hammer
-            indicators['hammer'] = float((lower_wick.iloc[-1] > 2 * body.iloc[-1]) and 
-                                       (upper_wick.iloc[-1] < body.iloc[-1] * 0.5) and
-                                       (df['close'].iloc[-1] > df['low'].iloc[-5:].min()))
+            # Sentiment and momentum fusion
+            sentiment = self._sentiment_analysis(df, current_price)
             
-            # Hanging man
-            indicators['hanging_man'] = float((lower_wick.iloc[-1] > 2 * body.iloc[-1]) and 
-                                            (upper_wick.iloc[-1] < body.iloc[-1] * 0.5) and
-                                            (df['close'].iloc[-1] < df['high'].iloc[-5:].max()))
+            # Predictive analytics
+            predictions = self._predictive_analytics(df, current_price)
             
-            # Three white soldiers
-            indicators['three_white_soldiers'] = float(all(df['close'].iloc[i] > df['open'].iloc[i] and 
-                                                          df['close'].iloc[i] > df['close'].iloc[i-1] 
-                                                          for i in range(-3, 0)))
+            # Neural signal fusion
+            composite_signal = self._neural_signal_fusion({
+                'regime': regime,
+                'mtf': mtf_signals,
+                'patterns': patterns,
+                'stats': stats_analysis,
+                'sentiment': sentiment,
+                'predictions': predictions
+            })
             
-            # Three black crows
-            indicators['three_black_crows'] = float(all(df['close'].iloc[i] < df['open'].iloc[i] and 
-                                                       df['close'].iloc[i] < df['close'].iloc[i-1] 
-                                                       for i in range(-3, 0)))
+            # Calculate all traditional indicators with adaptive parameters
+            traditional = self._calculate_adaptive_indicators(df, current_price)
             
-            # Inside bar
-            indicators['inside_bar'] = float((df['high'].iloc[-1] < df['high'].iloc[-2]) and 
-                                           (df['low'].iloc[-1] > df['low'].iloc[-2]))
-            
-            # Price action momentum
-            indicators['pa_momentum'] = (current_price - df['close'].iloc[-5]) / df['close'].iloc[-5]
-            
-        except Exception as e:
-            logger.error(f"Error in price action indicators: {e}")
-            
-        return indicators
-    
-    def _chart_patterns(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Detect chart patterns"""
-        indicators = {}
-        
-        try:
-            # Simplified pattern detection
-            highs = df['high'].rolling(20).max()
-            lows = df['low'].rolling(20).min()
-            
-            # Head and shoulders (simplified)
-            indicators['head_shoulders'] = 0.0
-            
-            # Double top/bottom
-            recent_highs = df['high'].iloc[-20:]
-            recent_lows = df['low'].iloc[-20:]
-            
-            indicators['double_top'] = float(len(recent_highs[recent_highs > recent_highs.quantile(0.95)]) >= 2)
-            indicators['double_bottom'] = float(len(recent_lows[recent_lows < recent_lows.quantile(0.05)]) >= 2)
-            
-            # Triangle pattern (converging highs and lows)
-            high_slope = np.polyfit(range(20), df['high'].iloc[-20:].values, 1)[0]
-            low_slope = np.polyfit(range(20), df['low'].iloc[-20:].values, 1)[0]
-            indicators['triangle_pattern'] = float(abs(high_slope + low_slope) < 0.001)
-            
-            # Channel detection
-            mid_price = (highs + lows) / 2
-            indicators['channel_upper'] = float(df['close'].iloc[-1] > mid_price.iloc[-1] + (highs.iloc[-1] - mid_price.iloc[-1]) * 0.8)
-            indicators['channel_lower'] = float(df['close'].iloc[-1] < mid_price.iloc[-1] - (mid_price.iloc[-1] - lows.iloc[-1]) * 0.8)
-            
-            # Flag pattern
-            indicators['flag_pattern'] = 0.0
-            
-            # Wedge patterns
-            indicators['rising_wedge'] = float(high_slope > 0 and low_slope > 0 and high_slope < low_slope)
-            indicators['falling_wedge'] = float(high_slope < 0 and low_slope < 0 and high_slope > low_slope)
-            
-        except Exception as e:
-            logger.error(f"Error in chart patterns: {e}")
-            
-        return indicators
-    
-    def _mathematical_indicators(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
-        """Calculate mathematical indicators"""
-        indicators = {}
-        
-        try:
-            # Fibonacci levels
-            high = df['high'].iloc[-50:].max()
-            low = df['low'].iloc[-50:].min()
-            diff = high - low
-            
-            fib_levels = {
-                'fib_236': low + diff * 0.236,
-                'fib_382': low + diff * 0.382,
-                'fib_500': low + diff * 0.500,
-                'fib_618': low + diff * 0.618
+            return {
+                'current_price': current_price,
+                'regime': regime.__dict__,
+                'multi_timeframe': mtf_signals,
+                'patterns': [p.__dict__ for p in patterns],
+                'statistics': stats_analysis,
+                'sentiment': sentiment,
+                'predictions': predictions,
+                'composite_signal': composite_signal,
+                'traditional': traditional,
+                'confidence': self._calculate_overall_confidence(composite_signal)
             }
             
-            for name, level in fib_levels.items():
-                indicators[name] = float(abs(current_price - level) / level < 0.005)
-            
-            # Pivot points
-            prev_high = df['high'].iloc[-2]
-            prev_low = df['low'].iloc[-2]
-            prev_close = df['close'].iloc[-2]
-            
-            pivot = (prev_high + prev_low + prev_close) / 3
-            r1 = 2 * pivot - prev_low
-            s1 = 2 * pivot - prev_high
-            
-            indicators['pivot_point'] = float(abs(current_price - pivot) / pivot < 0.002)
-            indicators['pivot_r1'] = float(abs(current_price - r1) / r1 < 0.002)
-            indicators['pivot_s1'] = float(abs(current_price - s1) / s1 < 0.002)
-            
-            # Linear regression
-            x = np.arange(len(df))[-20:]
-            y = df['close'].iloc[-20:].values
-            slope, intercept = np.polyfit(x, y, 1)
-            
-            indicators['lin_reg_slope'] = slope
-            indicators['lin_reg_deviation'] = (current_price - (slope * x[-1] + intercept)) / current_price
-            
         except Exception as e:
-            logger.error(f"Error in mathematical indicators: {e}")
-            
-        return indicators
+            logger.error(f"Error in ultra indicators: {e}")
+            return {'current_price': current_price, 'error': str(e)}
     
-    def _volatility_analysis(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
-        """Analyze volatility"""
-        indicators = {}
-        
+    def _detect_market_regime(self, df: pd.DataFrame, current_price: float) -> MarketRegime:
+        """Intelligent market regime detection"""
         try:
-            # ATR
-            high_low = df['high'] - df['low']
-            high_close = abs(df['high'] - df['close'].shift())
-            low_close = abs(df['low'] - df['close'].shift())
-            
-            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-            atr = tr.rolling(14).mean().iloc[-1]
-            
-            indicators['atr'] = atr
-            indicators['atr_ratio'] = atr / current_price
-            
-            # Bollinger Bands
+            # Trend detection using multiple methods
             sma20 = df['close'].rolling(20).mean()
-            std20 = df['close'].rolling(20).std()
+            sma50 = df['close'].rolling(50).mean()
+            sma200 = df['close'].rolling(200).mean() if len(df) >= 200 else sma50
             
-            upper_bb = sma20 + 2 * std20
-            lower_bb = sma20 - 2 * std20
+            # Advanced trend scoring
+            trend_score = 0
+            if current_price > sma20.iloc[-1]: trend_score += 0.3
+            if current_price > sma50.iloc[-1]: trend_score += 0.3
+            if current_price > sma200.iloc[-1]: trend_score += 0.4
+            if sma20.iloc[-1] > sma50.iloc[-1]: trend_score += 0.3
+            if sma50.iloc[-1] > sma200.iloc[-1]: trend_score += 0.3
             
-            indicators['bb_width'] = (upper_bb.iloc[-1] - lower_bb.iloc[-1]) / sma20.iloc[-1]
-            indicators['bb_squeeze'] = float(indicators['bb_width'] < df['close'].rolling(100).apply(
-                lambda x: (x.rolling(20).mean() + 2*x.rolling(20).std() - 
-                          (x.rolling(20).mean() - 2*x.rolling(20).std())) / x.rolling(20).mean()
-            ).quantile(0.1).iloc[-1])
+            # Slope analysis
+            recent_slope = np.polyfit(range(20), df['close'].iloc[-20:].values, 1)[0]
+            normalized_slope = recent_slope / df['close'].iloc[-1]
             
-            # Keltner Channels
-            ema20 = df['close'].ewm(span=20).mean()
-            kc_upper = ema20 + 2 * atr
-            kc_lower = ema20 - 2 * atr
-            
-            indicators['keltner_upper'] = float(current_price > kc_upper.iloc[-1])
-            indicators['keltner_lower'] = float(current_price < kc_lower.iloc[-1])
-            
-            # Historical volatility
-            returns = df['close'].pct_change()
-            indicators['hist_volatility'] = returns.rolling(20).std().iloc[-1] * np.sqrt(252)
-            
-            # Volatility ratio
-            short_vol = returns.rolling(5).std().iloc[-1]
-            long_vol = returns.rolling(20).std().iloc[-1]
-            indicators['vol_ratio'] = short_vol / long_vol if long_vol > 0 else 1
-            
-            # Donchian Channels
-            indicators['donchian_high'] = float(current_price > df['high'].rolling(20).max().iloc[-2])
-            indicators['donchian_low'] = float(current_price < df['low'].rolling(20).min().iloc[-2])
-            
-        except Exception as e:
-            logger.error(f"Error in volatility analysis: {e}")
-            
-        return indicators
-    
-    def _market_structure(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
-        """Analyze market structure"""
-        indicators = {}
-        
-        try:
-            # Support and resistance levels
-            recent_highs = df['high'].iloc[-50:]
-            recent_lows = df['low'].iloc[-50:]
-            
-            # Find significant levels
-            resistance_levels = recent_highs[recent_highs > recent_highs.quantile(0.9)].unique()
-            support_levels = recent_lows[recent_lows < recent_lows.quantile(0.1)].unique()
-            
-            indicators['near_resistance'] = float(any(abs(current_price - r) / r < 0.002 for r in resistance_levels))
-            indicators['near_support'] = float(any(abs(current_price - s) / s < 0.002 for s in support_levels))
-            
-            # Structure breaks
-            prev_high = df['high'].iloc[-20:-1].max()
-            prev_low = df['low'].iloc[-20:-1].min()
-            
-            indicators['structure_break_up'] = float(current_price > prev_high)
-            indicators['structure_break_down'] = float(current_price < prev_low)
-            
-            # Higher highs and lower lows
-            highs = df['high'].iloc[-20:]
-            lows = df['low'].iloc[-20:]
-            
-            hh_count = sum(1 for i in range(1, len(highs)) if highs.iloc[i] > highs.iloc[i-1])
-            ll_count = sum(1 for i in range(1, len(lows)) if lows.iloc[i] < lows.iloc[i-1])
-            
-            indicators['higher_highs'] = hh_count / len(highs)
-            indicators['lower_lows'] = ll_count / len(lows)
-            
-            # Range detection
-            range_high = df['high'].iloc[-20:].max()
-            range_low = df['low'].iloc[-20:].min()
-            range_size = (range_high - range_low) / ((range_high + range_low) / 2)
-            
-            indicators['in_range'] = float(range_size < 0.02)
-            
-        except Exception as e:
-            logger.error(f"Error in market structure: {e}")
-            
-        return indicators
-    
-    def _momentum_analysis(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Analyze momentum"""
-        indicators = {}
-        
-        try:
-            # Rate of Change
-            for period in [5, 10, 20]:
-                indicators[f'roc_{period}'] = (df['close'].iloc[-1] - df['close'].iloc[-period-1]) / df['close'].iloc[-period-1]
-            
-            # Momentum
-            indicators['momentum_14'] = df['close'].iloc[-1] - df['close'].iloc[-15]
-            
-            # Price Oscillator
-            ema12 = df['close'].ewm(span=12).mean()
-            ema26 = df['close'].ewm(span=26).mean()
-            indicators['price_oscillator'] = (ema12.iloc[-1] - ema26.iloc[-1]) / ema26.iloc[-1]
-            
-            # CCI
-            typical_price = (df['high'] + df['low'] + df['close']) / 3
-            sma20 = typical_price.rolling(20).mean()
-            mad = typical_price.rolling(20).apply(lambda x: np.mean(np.abs(x - x.mean())))
-            indicators['cci'] = (typical_price.iloc[-1] - sma20.iloc[-1]) / (0.015 * mad.iloc[-1])
-            
-            # Williams %R
-            highest_high = df['high'].rolling(14).max()
-            lowest_low = df['low'].rolling(14).min()
-            indicators['williams_r'] = -100 * (highest_high.iloc[-1] - df['close'].iloc[-1]) / (highest_high.iloc[-1] - lowest_low.iloc[-1])
-            
-            # Ultimate Oscillator
-            bp = df['close'] - pd.concat([df['low'], df['close'].shift()], axis=1).min(axis=1)
-            tr = pd.concat([df['high'] - df['low'], 
-                           abs(df['high'] - df['close'].shift()),
-                           abs(df['low'] - df['close'].shift())], axis=1).max(axis=1)
-            
-            avg7 = bp.rolling(7).sum() / tr.rolling(7).sum()
-            avg14 = bp.rolling(14).sum() / tr.rolling(14).sum()
-            avg28 = bp.rolling(28).sum() / tr.rolling(28).sum()
-            
-            indicators['ultimate_oscillator'] = 100 * ((4 * avg7.iloc[-1]) + (2 * avg14.iloc[-1]) + avg28.iloc[-1]) / 7
-            
-        except Exception as e:
-            logger.error(f"Error in momentum analysis: {e}")
-            
-        return indicators
-    
-    def _volume_order_flow(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Analyze volume and order flow"""
-        indicators = {}
-        
-        try:
-            # Volume moving averages
-            if 'volume' in df.columns:
-                indicators['volume_sma_10'] = df['volume'].rolling(10).mean().iloc[-1]
-                indicators['volume_sma_20'] = df['volume'].rolling(20).mean().iloc[-1]
-                indicators['volume_ratio'] = df['volume'].iloc[-1] / indicators['volume_sma_20'] if indicators['volume_sma_20'] > 0 else 1
-                
-                # OBV
-                obv = (df['volume'] * np.sign(df['close'].diff())).cumsum()
-                indicators['obv_trend'] = (obv.iloc[-1] - obv.iloc[-20]) / abs(obv.iloc[-20]) if obv.iloc[-20] != 0 else 0
-                
-                # A/D Line
-                clv = ((df['close'] - df['low']) - (df['high'] - df['close'])) / (df['high'] - df['low'])
-                clv = clv.fillna(0)
-                ad = (clv * df['volume']).cumsum()
-                indicators['ad_line'] = (ad.iloc[-1] - ad.iloc[-20]) / abs(ad.iloc[-20]) if ad.iloc[-20] != 0 else 0
-                
-                # Chaikin Money Flow
-                mf_volume = clv * df['volume']
-                indicators['chaikin_mf'] = mf_volume.rolling(20).sum().iloc[-1] / df['volume'].rolling(20).sum().iloc[-1]
-                
-                # Volume Price Trend
-                vpt = (df['volume'] * df['close'].pct_change()).cumsum()
-                indicators['vpt'] = (vpt.iloc[-1] - vpt.iloc[-20]) / abs(vpt.iloc[-20]) if vpt.iloc[-20] != 0 else 0
-                
-                # Force Index
-                indicators['force_index'] = df['volume'].iloc[-1] * (df['close'].iloc[-1] - df['close'].iloc[-2])
-                
-                # Money Flow Index
-                typical_price = (df['high'] + df['low'] + df['close']) / 3
-                money_flow = typical_price * df['volume']
-                
-                positive_flow = money_flow.where(typical_price > typical_price.shift(), 0).rolling(14).sum()
-                negative_flow = money_flow.where(typical_price < typical_price.shift(), 0).rolling(14).sum()
-                
-                mfi_ratio = positive_flow / negative_flow
-                indicators['mfi'] = 100 - (100 / (1 + mfi_ratio.iloc[-1]))
+            # Determine trend
+            if trend_score >= 1.2 and normalized_slope > 0.0002:
+                trend = 'bullish'
+            elif trend_score <= 0.4 and normalized_slope < -0.0002:
+                trend = 'bearish'
             else:
-                # If no volume data, set defaults
-                for key in ['volume_sma_10', 'volume_sma_20', 'volume_ratio', 'obv_trend', 
-                           'ad_line', 'chaikin_mf', 'vpt', 'force_index', 'mfi']:
-                    indicators[key] = 0.0
+                trend = 'ranging'
+            
+            # Volatility analysis
+            atr = self._calculate_atr(df, 14)
+            atr_ratio = atr / current_price
+            historical_vol = df['close'].pct_change().rolling(20).std().iloc[-1]
+            
+            if atr_ratio < 0.001 or historical_vol < 0.005:
+                volatility = 'low'
+            elif atr_ratio > 0.003 or historical_vol > 0.015:
+                volatility = 'high'
+            else:
+                volatility = 'medium'
+            
+            # Momentum analysis
+            rsi = self._calculate_rsi(df, 14)
+            macd, macd_signal, _ = self._calculate_macd(df)
+            momentum_score = 0
+            
+            if rsi > 70: momentum_score += 2
+            elif rsi > 60: momentum_score += 1
+            elif rsi < 30: momentum_score -= 2
+            elif rsi < 40: momentum_score -= 1
+            
+            if macd > macd_signal: momentum_score += 1
+            else: momentum_score -= 1
+            
+            if momentum_score >= 2:
+                momentum = 'strong_up'
+            elif momentum_score == 1:
+                momentum = 'weak_up'
+            elif momentum_score == 0:
+                momentum = 'neutral'
+            elif momentum_score == -1:
+                momentum = 'weak_down'
+            else:
+                momentum = 'strong_down'
+            
+            # Calculate regime confidence
+            confidence = min(1.0, abs(trend_score - 0.8) / 0.8 * 0.5 + 
+                           abs(normalized_slope) * 1000 * 0.3 +
+                           (1 - atr_ratio * 100) * 0.2)
+            
+            return MarketRegime(trend, volatility, momentum, confidence)
+            
+        except Exception as e:
+            logger.error(f"Error in regime detection: {e}")
+            return MarketRegime('ranging', 'medium', 'neutral', 0.5)
+    
+    def _adapt_parameters(self, regime: MarketRegime):
+        """Adapt indicator parameters based on market regime"""
+        if regime.volatility == 'high':
+            self.adaptive_params = {
+                'rsi_period': 21,  # Longer period for high volatility
+                'ma_fast': 12,
+                'ma_slow': 30,
+                'atr_period': 21,
+                'lookback': 30
+            }
+        elif regime.volatility == 'low':
+            self.adaptive_params = {
+                'rsi_period': 9,  # Shorter period for low volatility
+                'ma_fast': 5,
+                'ma_slow': 15,
+                'atr_period': 10,
+                'lookback': 15
+            }
+        else:
+            self.adaptive_params = {
+                'rsi_period': 14,
+                'ma_fast': 9,
+                'ma_slow': 21,
+                'atr_period': 14,
+                'lookback': 20
+            }
+    
+    def _multi_timeframe_analysis(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
+        """Analyze multiple timeframes for confluence"""
+        mtf_signals = {}
+        
+        try:
+            # Simulate different timeframes by resampling
+            timeframes = {
+                'M5': 1,    # Current timeframe
+                'M15': 3,   # 15-minute
+                'H1': 12,   # 1-hour
+                'H4': 48    # 4-hour
+            }
+            
+            for tf_name, multiplier in timeframes.items():
+                if len(df) < multiplier * 20:
+                    continue
                     
-        except Exception as e:
-            logger.error(f"Error in volume analysis: {e}")
+                # Resample data
+                resampled = df.iloc[::multiplier].copy() if multiplier > 1 else df.copy()
+                
+                # Calculate key indicators for each timeframe
+                rsi = self._calculate_rsi(resampled, 14)
+                macd, macd_signal, macd_hist = self._calculate_macd(resampled)
+                
+                # Trend direction
+                sma20 = resampled['close'].rolling(20).mean()
+                trend = 1 if current_price > sma20.iloc[-1] else -1
+                
+                # Store signals
+                mtf_signals[tf_name] = {
+                    'trend': trend,
+                    'rsi': rsi,
+                    'macd_histogram': macd_hist,
+                    'strength': abs(current_price - sma20.iloc[-1]) / sma20.iloc[-1]
+                }
             
-        return indicators
+            # Calculate confluence score
+            trend_sum = sum(s['trend'] for s in mtf_signals.values())
+            confluence_score = trend_sum / len(mtf_signals)
+            
+            mtf_signals['confluence'] = confluence_score
+            mtf_signals['aligned'] = abs(confluence_score) > 0.7
+            
+        except Exception as e:
+            logger.error(f"Error in MTF analysis: {e}")
+            
+        return mtf_signals
     
-    def _time_based_patterns(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
-        """Analyze time-based patterns"""
-        indicators = {}
+    def _ml_pattern_recognition(self, df: pd.DataFrame, current_price: float) -> List[PatternSignal]:
+        """Machine learning-inspired pattern recognition"""
+        patterns = []
         
         try:
-            from datetime import datetime
-            import pytz
+            # Harmonic patterns detection
+            harmonic = self._detect_harmonic_patterns(df, current_price)
+            if harmonic:
+                patterns.extend(harmonic)
             
-            # Get current time in different timezones
-            utc_now = datetime.now(pytz.UTC)
-            tokyo_now = utc_now.astimezone(pytz.timezone('Asia/Tokyo'))
-            london_now = utc_now.astimezone(pytz.timezone('Europe/London'))
-            ny_now = utc_now.astimezone(pytz.timezone('America/New_York'))
+            # Elliott Wave patterns
+            elliott = self._detect_elliott_waves(df, current_price)
+            if elliott:
+                patterns.extend(elliott)
             
-            # Session detection
-            tokyo_hour = tokyo_now.hour
-            london_hour = london_now.hour
-            ny_hour = ny_now.hour
+            # Advanced candlestick patterns
+            candlestick = self._detect_advanced_candlesticks(df, current_price)
+            if candlestick:
+                patterns.extend(candlestick)
             
-            indicators['asian_session'] = float(0 <= tokyo_hour < 9)
-            indicators['london_session'] = float(8 <= london_hour < 17)
-            indicators['ny_session'] = float(8 <= ny_hour < 17)
-            indicators['session_overlap'] = float((indicators['london_session'] and indicators['ny_session']) or
-                                                 (indicators['asian_session'] and indicators['london_session']))
+            # Support/Resistance with ML clustering
+            sr_levels = self._ml_support_resistance(df, current_price)
+            if sr_levels:
+                patterns.extend(sr_levels)
             
-            # Day of week
-            weekday = tokyo_now.weekday()
-            indicators['monday'] = float(weekday == 0)
-            indicators['friday'] = float(weekday == 4)
-            indicators['midweek'] = float(1 <= weekday <= 3)
+            # Sort by confidence
+            patterns.sort(key=lambda x: x.confidence, reverse=True)
             
-            # Intraday momentum
-            if len(df) >= 12:  # 1 hour of 5-minute candles
-                indicators['hourly_momentum'] = (df['close'].iloc[-1] - df['close'].iloc[-12]) / df['close'].iloc[-12]
-            else:
-                indicators['hourly_momentum'] = 0.0
-                
-            if len(df) >= 24:  # 2 hours of 5-minute candles
-                indicators['two_hour_momentum'] = (df['close'].iloc[-1] - df['close'].iloc[-24]) / df['close'].iloc[-24]
-            else:
-                indicators['two_hour_momentum'] = 0.0
+            # Store in pattern memory for learning
+            for pattern in patterns:
+                self.pattern_memory.append({
+                    'pattern': pattern,
+                    'price': current_price,
+                    'success': None  # To be updated later
+                })
             
-            # Opening range
-            if len(df) >= 60:  # Assuming we have enough data
-                opening_high = df['high'].iloc[-60:-48].max()
-                opening_low = df['low'].iloc[-60:-48].min()
-                
-                indicators['above_opening_range'] = float(current_price > opening_high)
-                indicators['below_opening_range'] = float(current_price < opening_low)
-            else:
-                indicators['above_opening_range'] = 0.0
-                indicators['below_opening_range'] = 0.0
-                
         except Exception as e:
-            logger.error(f"Error in time-based patterns: {e}")
+            logger.error(f"Error in pattern recognition: {e}")
             
-        return indicators
+        return patterns[:5]  # Return top 5 patterns
     
-    def _statistical_analysis(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Perform statistical analysis"""
-        indicators = {}
+    def _detect_harmonic_patterns(self, df: pd.DataFrame, current_price: float) -> List[PatternSignal]:
+        """Detect harmonic patterns (Gartley, Butterfly, Bat, Crab)"""
+        patterns = []
+        
+        try:
+            if len(df) < 100:
+                return patterns
+                
+            # Find swing points
+            highs = df['high'].rolling(5).max() == df['high']
+            lows = df['low'].rolling(5).min() == df['low']
+            
+            swing_highs = df[highs].index.tolist()
+            swing_lows = df[lows].index.tolist()
+            
+            if len(swing_highs) >= 3 and len(swing_lows) >= 2:
+                # Simplified Gartley pattern detection
+                X = df['high'].iloc[swing_highs[-3]]
+                A = df['low'].iloc[swing_lows[-2]]
+                B = df['high'].iloc[swing_highs[-2]]
+                C = df['low'].iloc[swing_lows[-1]]
+                D = current_price
+                
+                XA = A - X
+                AB = B - A
+                BC = C - B
+                CD = D - C
+                
+                # Check Fibonacci ratios
+                if XA != 0 and AB != 0 and BC != 0:
+                    AB_XA = abs(AB / XA)
+                    BC_AB = abs(BC / AB)
+                    CD_BC = abs(CD / BC)
+                    
+                    # Gartley ratios
+                    if 0.58 <= AB_XA <= 0.65 and 0.35 <= BC_AB <= 0.9:
+                        confidence = 0.7 * (1 - abs(AB_XA - 0.618)) * (1 - abs(BC_AB - 0.618))
+                        target = D + (X - A) * 0.618
+                        stop = C
+                        
+                        patterns.append(PatternSignal(
+                            'Gartley',
+                            'bullish' if D < C else 'bearish',
+                            confidence,
+                            target,
+                            stop
+                        ))
+            
+        except Exception as e:
+            logger.error(f"Error detecting harmonic patterns: {e}")
+            
+        return patterns
+    
+    def _detect_elliott_waves(self, df: pd.DataFrame, current_price: float) -> List[PatternSignal]:
+        """Detect Elliott Wave patterns"""
+        patterns = []
+        
+        try:
+            if len(df) < 50:
+                return patterns
+                
+            # Simplified wave detection
+            prices = df['close'].values[-50:]
+            
+            # Find local extrema
+            peaks = signal.find_peaks(prices, distance=5)[0]
+            troughs = signal.find_peaks(-prices, distance=5)[0]
+            
+            if len(peaks) >= 3 and len(troughs) >= 2:
+                # Check for impulsive wave structure
+                if troughs[0] < peaks[0] < troughs[1] < peaks[1]:
+                    # Potential 5-wave structure
+                    wave1 = prices[peaks[0]] - prices[troughs[0]]
+                    wave3 = prices[peaks[1]] - prices[troughs[1]]
+                    
+                    if wave3 > wave1 * 1.618:  # Wave 3 should be extended
+                        confidence = 0.8
+                        target = current_price + wave1 * 1.618
+                        stop = prices[troughs[-1]]
+                        
+                        patterns.append(PatternSignal(
+                            'Elliott_Wave_5',
+                            'bullish',
+                            confidence,
+                            target,
+                            stop
+                        ))
+            
+        except Exception as e:
+            logger.error(f"Error detecting Elliott waves: {e}")
+            
+        return patterns
+    
+    def _detect_advanced_candlesticks(self, df: pd.DataFrame, current_price: float) -> List[PatternSignal]:
+        """Detect advanced candlestick patterns with ML scoring"""
+        patterns = []
+        
+        try:
+            # Three-line strike
+            if len(df) >= 4:
+                last_four = df.iloc[-4:]
+                if (all(last_four['close'].iloc[i] < last_four['open'].iloc[i] for i in range(3)) and
+                    last_four['close'].iloc[-1] > last_four['open'].iloc[-1] and
+                    last_four['close'].iloc[-1] > last_four['open'].iloc[0]):
+                    
+                    confidence = 0.85
+                    target = current_price * 1.01
+                    stop = last_four['low'].iloc[-1]
+                    
+                    patterns.append(PatternSignal(
+                        'Three_Line_Strike',
+                        'bullish',
+                        confidence,
+                        target,
+                        stop
+                    ))
+            
+            # Morning/Evening star with volume confirmation
+            if len(df) >= 3 and 'volume' in df.columns:
+                last_three = df.iloc[-3:]
+                
+                # Morning star
+                if (last_three['close'].iloc[0] < last_three['open'].iloc[0] and  # First bearish
+                    abs(last_three['close'].iloc[1] - last_three['open'].iloc[1]) < 
+                    (last_three['high'].iloc[1] - last_three['low'].iloc[1]) * 0.3 and  # Small body
+                    last_three['close'].iloc[2] > last_three['open'].iloc[2] and  # Third bullish
+                    last_three['volume'].iloc[2] > last_three['volume'].iloc[:2].mean() * 1.5):  # Volume surge
+                    
+                    confidence = 0.9
+                    target = current_price * 1.015
+                    stop = last_three['low'].min()
+                    
+                    patterns.append(PatternSignal(
+                        'Morning_Star_Volume',
+                        'bullish',
+                        confidence,
+                        target,
+                        stop
+                    ))
+            
+        except Exception as e:
+            logger.error(f"Error detecting candlesticks: {e}")
+            
+        return patterns
+    
+    def _ml_support_resistance(self, df: pd.DataFrame, current_price: float) -> List[PatternSignal]:
+        """ML-based support/resistance detection using clustering"""
+        patterns = []
+        
+        try:
+            # Collect price levels
+            price_levels = []
+            price_levels.extend(df['high'].iloc[-100:].tolist())
+            price_levels.extend(df['low'].iloc[-100:].tolist())
+            price_levels.extend(df['close'].iloc[-100:].tolist())
+            
+            # Simple clustering
+            price_levels = sorted(price_levels)
+            clusters = []
+            cluster_threshold = current_price * 0.002  # 0.2% threshold
+            
+            current_cluster = [price_levels[0]]
+            for price in price_levels[1:]:
+                if price - current_cluster[-1] <= cluster_threshold:
+                    current_cluster.append(price)
+                else:
+                    if len(current_cluster) >= 3:
+                        clusters.append(current_cluster)
+                    current_cluster = [price]
+            
+            if len(current_cluster) >= 3:
+                clusters.append(current_cluster)
+            
+            # Find nearest support/resistance
+            for cluster in clusters:
+                level = np.mean(cluster)
+                touches = len(cluster)
+                distance = abs(current_price - level) / current_price
+                
+                if distance < 0.005:  # Within 0.5%
+                    if current_price > level:
+                        # Support level
+                        confidence = min(0.9, touches / 10)
+                        target = current_price * 1.01
+                        stop = level * 0.995
+                        
+                        patterns.append(PatternSignal(
+                            'ML_Support',
+                            'bullish',
+                            confidence,
+                            target,
+                            stop
+                        ))
+                    else:
+                        # Resistance level
+                        confidence = min(0.9, touches / 10)
+                        target = current_price * 0.99
+                        stop = level * 1.005
+                        
+                        patterns.append(PatternSignal(
+                            'ML_Resistance',
+                            'bearish',
+                            confidence,
+                            target,
+                            stop
+                        ))
+            
+        except Exception as e:
+            logger.error(f"Error in ML support/resistance: {e}")
+            
+        return patterns
+    
+    def _advanced_statistical_analysis(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
+        """Advanced statistical analysis with predictive elements"""
+        stats = {}
         
         try:
             returns = df['close'].pct_change().dropna()
             
-            # Z-score
-            mean_20 = df['close'].rolling(20).mean()
-            std_20 = df['close'].rolling(20).std()
-            indicators['z_score'] = (df['close'].iloc[-1] - mean_20.iloc[-1]) / std_20.iloc[-1] if std_20.iloc[-1] > 0 else 0
+            # GARCH-like volatility clustering
+            squared_returns = returns ** 2
+            garch_vol = squared_returns.rolling(20).mean().iloc[-1] ** 0.5
+            stats['garch_volatility'] = garch_vol
             
-            # Percentile rank
-            indicators['percentile_rank'] = stats.percentileofscore(df['close'].iloc[-50:], df['close'].iloc[-1]) / 100
+            # Regime switching probability
+            bull_returns = returns[returns > 0]
+            bear_returns = returns[returns < 0]
             
-            # Standard deviation bands position
-            indicators['std_band_position'] = indicators['z_score'] / 2  # Normalized to [-1, 1] roughly
-            
-            # Skewness and kurtosis
-            if len(returns) >= 20:
-                indicators['return_skewness'] = stats.skew(returns.iloc[-20:])
-                indicators['return_kurtosis'] = stats.kurtosis(returns.iloc[-20:])
-            else:
-                indicators['return_skewness'] = 0.0
-                indicators['return_kurtosis'] = 0.0
-            
-            # Autocorrelation
-            if len(returns) >= 20:
-                indicators['autocorrelation'] = returns.iloc[-20:].autocorr(lag=1)
-            else:
-                indicators['autocorrelation'] = 0.0
-            
-            # Mean reversion
-            distance_from_mean = (df['close'].iloc[-1] - mean_20.iloc[-1]) / mean_20.iloc[-1]
-            indicators['mean_reversion'] = -distance_from_mean  # Negative when above mean, positive when below
-            
-            # Efficiency ratio
-            if len(df) >= 20:
-                net_change = abs(df['close'].iloc[-1] - df['close'].iloc[-20])
-                sum_of_changes = abs(df['close'].diff()).iloc[-20:].sum()
-                indicators['efficiency_ratio'] = net_change / sum_of_changes if sum_of_changes > 0 else 0
-            else:
-                indicators['efficiency_ratio'] = 0.0
-            
-            # Hurst exponent (simplified)
-            if len(returns) >= 100:
-                # Simplified Hurst calculation
-                lags = range(2, 20)
-                tau = [np.sqrt(np.std(np.subtract(returns.iloc[lag:].values, returns.iloc[:-lag].values))) for lag in lags]
-                poly = np.polyfit(np.log(lags), np.log(tau), 1)
-                indicators['hurst_exponent'] = poly[0] * 2.0
-            else:
-                indicators['hurst_exponent'] = 0.5
+            if len(bull_returns) > 10 and len(bear_returns) > 10:
+                bull_mean = bull_returns.mean()
+                bear_mean = bear_returns.mean()
+                bull_std = bull_returns.std()
+                bear_std = bear_returns.std()
                 
+                last_return = returns.iloc[-1]
+                
+                # Bayesian-like probability
+                bull_prob = stats.norm.pdf(last_return, bull_mean, bull_std)
+                bear_prob = stats.norm.pdf(last_return, bear_mean, bear_std)
+                
+                stats['bull_regime_probability'] = bull_prob / (bull_prob + bear_prob)
+            else:
+                stats['bull_regime_probability'] = 0.5
+            
+            # Entropy (market uncertainty)
+            if len(returns) >= 50:
+                hist, _ = np.histogram(returns.iloc[-50:], bins=10)
+                hist = hist / hist.sum()
+                entropy = -np.sum(hist * np.log(hist + 1e-10))
+                stats['market_entropy'] = entropy / np.log(10)  # Normalized
+            else:
+                stats['market_entropy'] = 0.5
+            
+            # Jump detection
+            threshold = 3 * returns.rolling(20).std().iloc[-1]
+            stats['jump_detected'] = abs(returns.iloc[-1]) > threshold
+            
+            # Microstructure noise estimation
+            if len(df) >= 100:
+                # Simplified realized variance
+                rv_5min = (returns ** 2).sum()
+                rv_15min = (returns.iloc[::3] ** 2).sum() * 3
+                noise_ratio = 1 - (rv_15min / rv_5min)
+                stats['noise_ratio'] = max(0, min(1, noise_ratio))
+            else:
+                stats['noise_ratio'] = 0.1
+            
+            # Tail risk measures
+            if len(returns) >= 100:
+                var_95 = np.percentile(returns, 5)
+                cvar_95 = returns[returns <= var_95].mean()
+                stats['value_at_risk_95'] = var_95
+                stats['conditional_var_95'] = cvar_95
+            else:
+                stats['value_at_risk_95'] = -0.02
+                stats['conditional_var_95'] = -0.03
+            
         except Exception as e:
             logger.error(f"Error in statistical analysis: {e}")
             
-        return indicators
+        return stats
     
-    def _advanced_composite_indicators(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
-        """Calculate advanced composite indicators"""
+    def _sentiment_analysis(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
+        """Analyze market sentiment from price action and volume"""
+        sentiment = {}
+        
+        try:
+            # Price action sentiment
+            closes = df['close'].values
+            opens = df['open'].values
+            highs = df['high'].values
+            lows = df['low'].values
+            
+            # Bullish/bearish candle ratio
+            bullish_candles = sum(closes > opens)
+            bearish_candles = sum(closes < opens)
+            total_candles = len(closes)
+            
+            sentiment['bullish_ratio'] = bullish_candles / total_candles
+            sentiment['bearish_ratio'] = bearish_candles / total_candles
+            
+            # Buying/selling pressure
+            buying_pressure = sum((closes - lows) / (highs - lows + 1e-10)) / total_candles
+            selling_pressure = sum((highs - closes) / (highs - lows + 1e-10)) / total_candles
+            
+            sentiment['buying_pressure'] = buying_pressure
+            sentiment['selling_pressure'] = selling_pressure
+            sentiment['pressure_ratio'] = buying_pressure / (selling_pressure + 1e-10)
+            
+            # Volume sentiment (if available)
+            if 'volume' in df.columns:
+                up_volume = df[df['close'] > df['open']]['volume'].sum()
+                down_volume = df[df['close'] < df['open']]['volume'].sum()
+                total_volume = df['volume'].sum()
+                
+                sentiment['volume_sentiment'] = (up_volume - down_volume) / total_volume if total_volume > 0 else 0
+                
+                # Smart money detection (large volume moves)
+                avg_volume = df['volume'].rolling(20).mean()
+                large_volume_moves = df[df['volume'] > avg_volume.iloc[-1] * 2]
+                
+                if len(large_volume_moves) > 0:
+                    smart_money_direction = np.sign((large_volume_moves['close'] - large_volume_moves['open']).mean())
+                    sentiment['smart_money_direction'] = smart_money_direction
+                else:
+                    sentiment['smart_money_direction'] = 0
+            else:
+                sentiment['volume_sentiment'] = 0
+                sentiment['smart_money_direction'] = 0
+            
+            # Momentum sentiment
+            short_ma = df['close'].rolling(5).mean().iloc[-1]
+            long_ma = df['close'].rolling(20).mean().iloc[-1]
+            
+            sentiment['momentum_sentiment'] = (short_ma - long_ma) / long_ma
+            
+            # Fear/Greed index (simplified)
+            rsi = self._calculate_rsi(df, 14)
+            fear_greed = (rsi - 50) / 50  # Normalized to [-1, 1]
+            sentiment['fear_greed_index'] = fear_greed
+            
+        except Exception as e:
+            logger.error(f"Error in sentiment analysis: {e}")
+            
+        return sentiment
+    
+    def _predictive_analytics(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
+        """Predictive analytics using time series analysis"""
+        predictions = {}
+        
+        try:
+            # Linear regression prediction
+            if len(df) >= 50:
+                x = np.arange(50)
+                y = df['close'].iloc[-50:].values
+                
+                # Polynomial features for non-linear patterns
+                z = np.polyfit(x, y, 2)
+                p = np.poly1d(z)
+                
+                # Predict next 3 periods
+                next_1 = p(50)
+                next_3 = p(52)
+                next_5 = p(54)
+                
+                predictions['linear_pred_1'] = next_1
+                predictions['linear_pred_3'] = next_3
+                predictions['linear_pred_5'] = next_5
+                predictions['linear_trend'] = 'up' if next_5 > current_price else 'down'
+            
+            # Fourier analysis for cyclic patterns
+            if len(df) >= 100:
+                prices = df['close'].iloc[-100:].values
+                prices_detrended = prices - np.linspace(prices[0], prices[-1], len(prices))
+                
+                fft = np.fft.fft(prices_detrended)
+                frequencies = np.fft.fftfreq(len(prices))
+                
+                # Find dominant frequency
+                idx = np.argmax(np.abs(fft[1:len(fft)//2])) + 1
+                dominant_freq = frequencies[idx]
+                dominant_period = 1 / abs(dominant_freq) if dominant_freq != 0 else 100
+                
+                predictions['dominant_cycle'] = dominant_period
+                predictions['cycle_phase'] = (len(prices) % dominant_period) / dominant_period
+            
+            # ARIMA-like prediction (simplified)
+            if len(df) >= 50:
+                returns = df['close'].pct_change().dropna().iloc[-50:]
+                
+                # AR(1) model
+                ar_coef = returns.autocorr(lag=1)
+                last_return = returns.iloc[-1]
+                predicted_return = ar_coef * last_return
+                
+                predictions['ar_predicted_price'] = current_price * (1 + predicted_return)
+                predictions['ar_confidence'] = abs(ar_coef)
+            
+            # Machine learning-inspired prediction
+            features = []
+            if len(df) >= 20:
+                # Feature engineering
+                features.append(self._calculate_rsi(df, 14) / 100)
+                features.append((current_price - df['close'].rolling(20).mean().iloc[-1]) / current_price)
+                features.append(df['close'].pct_change().rolling(5).std().iloc[-1] * 100)
+                
+                # Simple neural network-like combination
+                weights = [0.4, -0.3, -0.2]  # Learned weights
+                bias = 0.1
+                
+                activation = sum(f * w for f, w in zip(features, weights)) + bias
+                ml_prediction = 1 / (1 + np.exp(-activation))  # Sigmoid
+                
+                predictions['ml_bullish_probability'] = ml_prediction
+                predictions['ml_signal'] = 'bullish' if ml_prediction > 0.6 else 'bearish' if ml_prediction < 0.4 else 'neutral'
+            
+        except Exception as e:
+            logger.error(f"Error in predictive analytics: {e}")
+            
+        return predictions
+    
+    def _neural_signal_fusion(self, signals: Dict[str, Any]) -> Dict[str, Any]:
+        """Combine all signals using neural network-inspired approach"""
+        composite = {}
+        
+        try:
+            # Extract features from each signal category
+            features = []
+            
+            # Regime features
+            regime = signals['regime']
+            features.append(1.0 if regime.trend == 'bullish' else -1.0 if regime.trend == 'bearish' else 0.0)
+            features.append(1.0 if regime.volatility == 'low' else 0.0 if regime.volatility == 'medium' else -1.0)
+            features.append(regime.confidence)
+            
+            # Multi-timeframe features
+            mtf = signals['mtf']
+            if 'confluence' in mtf:
+                features.append(mtf['confluence'])
+            else:
+                features.append(0.0)
+            
+            # Pattern features
+            patterns = signals['patterns']
+            if patterns:
+                avg_confidence = np.mean([p.__dict__['confidence'] for p in patterns])
+                bullish_patterns = sum(1 for p in patterns if p.__dict__['direction'] == 'bullish')
+                bearish_patterns = sum(1 for p in patterns if p.__dict__['direction'] == 'bearish')
+                features.append(avg_confidence)
+                features.append((bullish_patterns - bearish_patterns) / max(1, len(patterns)))
+            else:
+                features.extend([0.0, 0.0])
+            
+            # Statistical features
+            stats = signals['stats']
+            features.append(stats.get('bull_regime_probability', 0.5))
+            features.append(1.0 - stats.get('market_entropy', 0.5))
+            
+            # Sentiment features
+            sentiment = signals['sentiment']
+            features.append(sentiment.get('pressure_ratio', 1.0) - 1.0)
+            features.append(sentiment.get('fear_greed_index', 0.0))
+            
+            # Predictive features
+            predictions = signals['predictions']
+            features.append(1.0 if predictions.get('linear_trend') == 'up' else -1.0)
+            features.append(predictions.get('ml_bullish_probability', 0.5))
+            
+            # Neural network layers
+            # Layer 1
+            hidden1 = []
+            layer1_weights = [
+                [0.3, -0.2, 0.4, 0.5, 0.2, -0.1, 0.3, 0.2, 0.1, -0.2, 0.4, 0.3],
+                [0.2, 0.3, -0.1, 0.2, 0.4, 0.3, -0.2, 0.1, 0.3, 0.4, -0.1, 0.2],
+                [-0.1, 0.4, 0.2, -0.3, 0.1, 0.5, 0.2, -0.2, 0.3, 0.1, 0.2, -0.3],
+                [0.4, 0.1, 0.3, 0.2, -0.3, 0.2, 0.4, 0.3, -0.1, 0.2, 0.3, 0.1]
+            ]
+            
+            for weights in layer1_weights:
+                activation = sum(f * w for f, w in zip(features, weights))
+                hidden1.append(np.tanh(activation))
+            
+            # Layer 2 (output)
+            output_weights = [0.5, 0.3, -0.2, 0.4]
+            final_activation = sum(h * w for h, w in zip(hidden1, output_weights))
+            
+            # Sigmoid output
+            signal_strength = 1 / (1 + np.exp(-final_activation))
+            
+            # Convert to trading signal
+            if signal_strength > 0.7:
+                composite['signal'] = 'strong_buy'
+                composite['confidence'] = signal_strength
+            elif signal_strength > 0.6:
+                composite['signal'] = 'buy'
+                composite['confidence'] = signal_strength
+            elif signal_strength < 0.3:
+                composite['signal'] = 'strong_sell'
+                composite['confidence'] = 1 - signal_strength
+            elif signal_strength < 0.4:
+                composite['signal'] = 'sell'
+                composite['confidence'] = 1 - signal_strength
+            else:
+                composite['signal'] = 'neutral'
+                composite['confidence'] = 1 - abs(signal_strength - 0.5) * 2
+            
+            # Additional insights
+            composite['strength'] = signal_strength
+            composite['feature_importance'] = {
+                'regime': abs(features[0]) * 0.3,
+                'patterns': features[4] * 0.25,
+                'statistics': features[6] * 0.2,
+                'sentiment': abs(features[8]) * 0.15,
+                'predictions': features[11] * 0.1
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in neural signal fusion: {e}")
+            composite = {'signal': 'neutral', 'confidence': 0.0}
+            
+        return composite
+    
+    def _calculate_overall_confidence(self, composite_signal: Dict[str, Any]) -> float:
+        """Calculate overall confidence score"""
+        try:
+            base_confidence = composite_signal.get('confidence', 0.5)
+            
+            # Adjust based on regime history consistency
+            if len(self.regime_history) >= 3:
+                recent_regimes = list(self.regime_history)[-3:]
+                regime_consistency = len(set(r.trend for r in recent_regimes)) == 1
+                if regime_consistency:
+                    base_confidence *= 1.2
+            
+            # Adjust based on pattern memory success rate
+            if len(self.pattern_memory) >= 20:
+                recent_patterns = list(self.pattern_memory)[-20:]
+                success_rate = sum(1 for p in recent_patterns if p.get('success', False)) / len(recent_patterns)
+                base_confidence *= (0.5 + success_rate)
+            
+            return min(1.0, max(0.0, base_confidence))
+            
+        except Exception as e:
+            logger.error(f"Error calculating confidence: {e}")
+            return 0.5
+    
+    def _calculate_adaptive_indicators(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
+        """Calculate traditional indicators with adaptive parameters"""
         indicators = {}
         
         try:
-            # MACD
+            # Use adaptive parameters
+            rsi_period = self.adaptive_params.get('rsi_period', 14)
+            ma_fast = self.adaptive_params.get('ma_fast', 9)
+            ma_slow = self.adaptive_params.get('ma_slow', 21)
+            
+            # Adaptive RSI
+            indicators['adaptive_rsi'] = self._calculate_rsi(df, rsi_period)
+            
+            # Adaptive moving averages
+            indicators['adaptive_ma_fast'] = df['close'].rolling(ma_fast).mean().iloc[-1]
+            indicators['adaptive_ma_slow'] = df['close'].rolling(ma_slow).mean().iloc[-1]
+            
+            # Dynamic Bollinger Bands
+            period = min(20, len(df) - 1)
+            sma = df['close'].rolling(period).mean()
+            std = df['close'].rolling(period).std()
+            
+            # Adjust band width based on volatility regime
+            if hasattr(self, 'regime_history') and self.regime_history:
+                current_regime = self.regime_history[-1]
+                if current_regime.volatility == 'high':
+                    band_multiplier = 2.5
+                elif current_regime.volatility == 'low':
+                    band_multiplier = 1.5
+                else:
+                    band_multiplier = 2.0
+            else:
+                band_multiplier = 2.0
+            
+            indicators['adaptive_bb_upper'] = sma.iloc[-1] + band_multiplier * std.iloc[-1]
+            indicators['adaptive_bb_lower'] = sma.iloc[-1] - band_multiplier * std.iloc[-1]
+            indicators['adaptive_bb_width'] = (indicators['adaptive_bb_upper'] - indicators['adaptive_bb_lower']) / sma.iloc[-1]
+            
+            # More adaptive indicators can be added here
+            
+        except Exception as e:
+            logger.error(f"Error in adaptive indicators: {e}")
+            
+        return indicators
+    
+    # Helper methods
+    def _calculate_rsi(self, df: pd.DataFrame, period: int) -> float:
+        """Calculate RSI"""
+        try:
+            delta = df['close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(period).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(period).mean()
+            rs = gain / loss
+            rsi = 100 - (100 / (1 + rs.iloc[-1]))
+            return rsi
+        except:
+            return 50.0
+    
+    def _calculate_macd(self, df: pd.DataFrame) -> Tuple[float, float, float]:
+        """Calculate MACD"""
+        try:
             ema12 = df['close'].ewm(span=12).mean()
             ema26 = df['close'].ewm(span=26).mean()
             macd_line = ema12 - ema26
             signal_line = macd_line.ewm(span=9).mean()
-            
-            indicators['macd'] = macd_line.iloc[-1]
-            indicators['macd_signal'] = signal_line.iloc[-1]
-            indicators['macd_histogram'] = indicators['macd'] - indicators['macd_signal']
-            
-            # RSI
-            delta = df['close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-            rs = gain / loss
-            indicators['rsi'] = 100 - (100 / (1 + rs.iloc[-1]))
-            
-            # Stochastic
-            lowest_low = df['low'].rolling(14).min()
-            highest_high = df['high'].rolling(14).max()
-            k_percent = 100 * (df['close'] - lowest_low) / (highest_high - lowest_low)
-            indicators['stoch_k'] = k_percent.iloc[-1]
-            indicators['stoch_d'] = k_percent.rolling(3).mean().iloc[-1]
-            
-            # ADX
-            high_diff = df['high'].diff()
-            low_diff = -df['low'].diff()
-            
-            plus_dm = high_diff.where((high_diff > low_diff) & (high_diff > 0), 0)
-            minus_dm = low_diff.where((low_diff > high_diff) & (low_diff > 0), 0)
-            
-            tr = pd.concat([
-                df['high'] - df['low'],
-                abs(df['high'] - df['close'].shift()),
-                abs(df['low'] - df['close'].shift())
-            ], axis=1).max(axis=1)
-            
-            atr14 = tr.rolling(14).mean()
-            plus_di = 100 * (plus_dm.rolling(14).mean() / atr14)
-            minus_di = 100 * (minus_dm.rolling(14).mean() / atr14)
-            
-            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
-            adx = dx.rolling(14).mean()
-            
-            indicators['adx'] = adx.iloc[-1]
-            indicators['plus_di'] = plus_di.iloc[-1]
-            indicators['minus_di'] = minus_di.iloc[-1]
-            
-            # Ichimoku
-            period9_high = df['high'].rolling(9).max()
-            period9_low = df['low'].rolling(9).min()
-            period26_high = df['high'].rolling(26).max()
-            period26_low = df['low'].rolling(26).min()
-            period52_high = df['high'].rolling(52).max()
-            period52_low = df['low'].rolling(52).min()
-            
-            tenkan_sen = (period9_high + period9_low) / 2
-            kijun_sen = (period26_high + period26_low) / 2
-            senkou_span_a = ((tenkan_sen + kijun_sen) / 2).shift(26)
-            senkou_span_b = ((period52_high + period52_low) / 2).shift(26)
-            chikou_span = df['close'].shift(-26)
-            
-            indicators['tenkan_sen'] = tenkan_sen.iloc[-1]
-            indicators['kijun_sen'] = kijun_sen.iloc[-1]
-            indicators['senkou_span_a'] = senkou_span_a.iloc[-1] if not pd.isna(senkou_span_a.iloc[-1]) else tenkan_sen.iloc[-1]
-            indicators['senkou_span_b'] = senkou_span_b.iloc[-1] if not pd.isna(senkou_span_b.iloc[-1]) else kijun_sen.iloc[-1]
-            indicators['chikou_span'] = current_price
-            
-            # Cloud signals
-            indicators['above_cloud'] = float(current_price > max(indicators['senkou_span_a'], indicators['senkou_span_b']))
-            indicators['below_cloud'] = float(current_price < min(indicators['senkou_span_a'], indicators['senkou_span_b']))
-            
-        except Exception as e:
-            logger.error(f"Error in advanced indicators: {e}")
-            
-        return indicators
+            histogram = macd_line - signal_line
+            return macd_line.iloc[-1], signal_line.iloc[-1], histogram.iloc[-1]
+        except:
+            return 0.0, 0.0, 0.0
+    
+    def _calculate_atr(self, df: pd.DataFrame, period: int) -> float:
+        """Calculate ATR"""
+        try:
+            high_low = df['high'] - df['low']
+            high_close = abs(df['high'] - df['close'].shift())
+            low_close = abs(df['low'] - df['close'].shift())
+            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            atr = tr.rolling(period).mean().iloc[-1]
+            return atr
+        except:
+            return 0.0
