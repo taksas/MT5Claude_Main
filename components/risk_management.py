@@ -33,7 +33,8 @@ class RiskManagement:
             # Get symbol specifications
             contract_size = symbol_info.get('trade_contract_size', 100000)
             min_volume = symbol_info.get('volume_min', CONFIG["MIN_VOLUME"])
-            max_volume = symbol_info.get('volume_max', 100)
+            # Limit maximum volume to prevent excessive position sizes
+            max_volume = min(symbol_info.get('volume_max', 1.0), 1.0)  # Max 1.0 lot
             volume_step = symbol_info.get('volume_step', 0.01)
             
             # Calculate pip value
@@ -66,9 +67,22 @@ class RiskManagement:
                 
                 # Additional safety for exotic/volatile instruments
                 if instrument_type in ['exotic', 'crypto']:
-                    position_size = min(position_size, min_volume * 5)
+                    position_size = min(position_size, 0.05)  # Max 0.05 lots
                 elif instrument_type == 'metal':
-                    position_size = min(position_size, min_volume * 10)
+                    position_size = min(position_size, 0.1)   # Max 0.1 lots
+                else:
+                    position_size = min(position_size, 0.2)   # Max 0.2 lots for majors
+                
+                # Final safety check: Never use more than 10% of balance for margin
+                # Rough estimate: position value = position_size * contract_size * current_price
+                position_value_estimate = position_size * contract_size * current_price
+                max_position_value = balance * 0.1  # Max 10% of balance
+                
+                if position_value_estimate > max_position_value:
+                    # Scale down position size
+                    position_size = (max_position_value / position_value_estimate) * position_size
+                    position_size = round(position_size / volume_step) * volume_step
+                    position_size = max(min_volume, position_size)
                 
                 return position_size
             else:
@@ -203,20 +217,18 @@ class RiskManagement:
                 # Inverse calculation
                 pip_value = (pip_size * contract_size) / current_price
             else:
-                # Cross calculation - need conversion rate
-                # For simplicity, assume standard pip values
+                # Cross calculation - use more realistic pip values
+                # For 0.01 lot (1000 units), not full lot
                 if self.account_currency == 'JPY':
                     if 'JPY' in symbol:
-                        pip_value = 1000  # ¥1000 per pip for XXX/JPY pairs
+                        pip_value = 10  # ¥10 per pip for XXX/JPY pairs (0.01 lot)
                     else:
-                        pip_value = 100  # ¥100 per pip for other pairs
+                        pip_value = 1  # ¥1 per pip for other pairs (0.01 lot)
                 else:
-                    pip_value = 10  # $10 per pip standard
+                    pip_value = 0.1  # $0.10 per pip for 0.01 lot
             
-            # Adjust for mini/micro lots
-            min_volume = symbol_info.get('volume_min', 0.01)
-            if min_volume < 1:
-                pip_value *= min_volume
+            # Scale pip value based on actual lot size (pip value is per 0.01 lot)
+            # No need to adjust here as we'll calculate based on position size
             
             return pip_value
             

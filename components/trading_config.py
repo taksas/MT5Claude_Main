@@ -4,45 +4,28 @@ Trading Configuration Module
 Contains all configuration constants and symbol configurations
 """
 
-# High-profit symbols configuration - diversified portfolio
+# High-profit symbols configuration - Only tradable symbols as per UPDATE_INSTRUCTIONS.md
 HIGH_PROFIT_SYMBOLS = {
-    # High volatility pairs first for better diversification
-    "GBPJPY": {"avg_daily_range": 150, "typical_spread": 3, "risk_factor": 0.007, "profit_potential": "very_high"},
     # Major pairs with good liquidity
     "EURUSD": {"avg_daily_range": 80, "typical_spread": 1, "risk_factor": 0.01, "profit_potential": "high"},
     "GBPUSD": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "high"},
     "USDJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "high"},
-    "AUDUSD": {"avg_daily_range": 70, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium_high"},
     "USDCAD": {"avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium_high"},
-    "NZDUSD": {"avg_daily_range": 65, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium"},
+    "USDCHF": {"avg_daily_range": 70, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium"},
     
-    # High-Profit Cross Currency Pairs
-    "EURGBP": {"avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, "strategy": "range_trading"},
-    "EURAUD": {"avg_daily_range": 110, "typical_spread": 3, "risk_factor": 0.009, "strategy": "trend_following"},
-    "EURNZD": {"avg_daily_range": 140, "typical_spread": 4, "risk_factor": 0.008, "strategy": "volatility_breakout"},
+    # High volatility JPY pairs
+    "GBPJPY": {"avg_daily_range": 150, "typical_spread": 3, "risk_factor": 0.007, "profit_potential": "very_high"},
     "EURJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.009, "strategy": "risk_sentiment"},
-    "GBPAUD": {"avg_daily_range": 160, "typical_spread": 4, "risk_factor": 0.007, "profit_potential": "very_high"},
-    "GBPNZD": {"avg_daily_range": 200, "typical_spread": 5, "risk_factor": 0.006, "profit_potential": "extreme"},
-    "AUDJPY": {"avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.009, "strategy": "carry_trade"},
-    "NZDJPY": {"avg_daily_range": 85, "typical_spread": 3, "risk_factor": 0.009, "strategy": "carry_trade"},
-    "AUDNZD": {"avg_daily_range": 50, "typical_spread": 3, "risk_factor": 0.010, "strategy": "mean_reversion"},
+    "CADJPY": {"avg_daily_range": 90, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium_high"},
+    "CHFJPY": {"avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium"},
     
-    # Exotic Currency Pairs - Extreme Volatility (moved down for lower priority)
-    "USDTRY": {"avg_daily_range": 2000, "typical_spread": 50, "risk_factor": 0.005, "profit_potential": "extreme"},
-    "EURTRY": {"avg_daily_range": 2500, "typical_spread": 80, "risk_factor": 0.004, "profit_potential": "extreme"},
-    "USDZAR": {"avg_daily_range": 1834, "typical_spread": 100, "risk_factor": 0.005, "profit_potential": "very_high"},
-    "USDMXN": {"avg_daily_range": 600, "typical_spread": 50, "risk_factor": 0.007, "profit_potential": "high"},
-    "EURNOK": {"avg_daily_range": 800, "typical_spread": 30, "risk_factor": 0.008, "profit_potential": "high"},
-    "EURSEK": {"avg_daily_range": 600, "typical_spread": 30, "risk_factor": 0.008, "profit_potential": "medium_high"},
-    
-    # Exotic Metals
-    "XPDUSD": {"avg_daily_range": 50, "typical_spread": 100, "risk_factor": 0.005, "volatility": "4%_daily"},
-    "XPTUSD": {"avg_daily_range": 30, "typical_spread": 50, "risk_factor": 0.007, "volatility": "3%_daily"},
-    
-    # Commodities
-    "NATGAS": {"avg_daily_range": 0.1, "typical_spread": 10, "risk_factor": 0.005, "seasonal": "Dec-Feb,Jun-Aug"},
-    "WHEAT": {"avg_daily_range": 10, "typical_spread": 5, "risk_factor": 0.007, "seasonal": "Mar-May,Jul-Sep"},
-    "COPPER": {"avg_daily_range": 0.05, "typical_spread": 5, "risk_factor": 0.008, "correlation": "China_data"}
+    # Cross Currency Pairs
+    "EURGBP": {"avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, "strategy": "range_trading"},
+    "EURCAD": {"avg_daily_range": 90, "typical_spread": 3, "risk_factor": 0.009, "profit_potential": "medium_high"},
+    "EURCHF": {"avg_daily_range": 50, "typical_spread": 2, "risk_factor": 0.010, "profit_potential": "medium"},
+    "GBPCAD": {"avg_daily_range": 120, "typical_spread": 3, "risk_factor": 0.008, "profit_potential": "high"},
+    "GBPCHF": {"avg_daily_range": 100, "typical_spread": 3, "risk_factor": 0.008, "profit_potential": "high"},
+    "CADCHF": {"avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, "profit_potential": "medium"}
 }
 
 # ULTRA Aggressive Configuration - FORCE TRADES

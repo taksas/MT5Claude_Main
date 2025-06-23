@@ -802,28 +802,32 @@ class TradingStrategy:
             # Minimal stop loss and take profit
             instrument_type = self.symbol_utils.get_instrument_type(symbol)
             
+            # Use percentage-based stop loss for margin safety
+            # Minimum 3% stop loss to avoid margin calls with 20% maintenance level
             if instrument_type == 'exotic':
-                sl_pips = 100
-                tp_pips = 150
+                sl_percent = 0.05  # 5% for exotic pairs
+                tp_percent = 0.10  # 10% take profit
             elif instrument_type == 'metal':
-                sl_pips = 50
-                tp_pips = 100
+                sl_percent = 0.04  # 4% for metals
+                tp_percent = 0.08  # 8% take profit
             elif instrument_type == 'crypto':
-                sl_pips = 200
-                tp_pips = 300
+                sl_percent = 0.06  # 6% for crypto
+                tp_percent = 0.12  # 12% take profit
             else:
-                sl_pips = 20
-                tp_pips = 30
+                sl_percent = 0.03  # 3% for major pairs
+                tp_percent = 0.06  # 6% take profit
             
-            pip_value = self._get_pip_value(symbol, current_price)
+            # Calculate SL/TP based on percentage
+            sl_distance = current_price * sl_percent
+            tp_distance = current_price * tp_percent
             
             if signal_type == SignalType.BUY:
-                sl = current_price - (sl_pips * pip_value)
-                tp = current_price + (tp_pips * pip_value)
+                sl = current_price - sl_distance
+                tp = current_price + tp_distance
                 reason = f"FORCED BUY: Momentum {momentum:.2%}"
             else:
-                sl = current_price + (sl_pips * pip_value)
-                tp = current_price - (tp_pips * pip_value)
+                sl = current_price + sl_distance
+                tp = current_price - tp_distance
                 reason = f"FORCED SELL: Momentum {momentum:.2%}"
             
             return Signal(
@@ -1621,8 +1625,9 @@ class TradingStrategy:
             # Causal foresight adjustment
             foresight_factor = 1 + causal_strategy.temporal_advantage * 0.1
             
-            # Calculate distances - increased base SL to 0.5% to prevent margin issues
-            sl_distance = max(min_sl_distance, current_price * 0.005) * consciousness_factor * vol_factor
+            # Calculate distances - increased base SL to 3% to prevent margin issues and avoid margin calls
+            # With 20% margin maintenance level, 3% stop loss provides safety buffer
+            sl_distance = max(min_sl_distance, current_price * 0.03) * consciousness_factor * vol_factor
             tp_distance = sl_distance * 2 * foresight_factor  # 2:1 RR with foresight boost
             
             # Quantum tunneling can extend TP
@@ -1641,8 +1646,9 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error calculating quantum SL/TP: {e}")
-            # Fallback to simple calculation - increased to 0.5% for safety
-            distance = current_price * 0.005
+            # Fallback to simple calculation - increased to 3% for margin safety
+            # With 20% margin maintenance level, 3% stop loss provides safety buffer
+            distance = current_price * 0.03
             if signal_type == SignalType.BUY:
                 return current_price - distance, current_price + distance * 2
             else:
