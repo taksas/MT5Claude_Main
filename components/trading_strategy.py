@@ -1621,8 +1621,8 @@ class TradingStrategy:
             # Causal foresight adjustment
             foresight_factor = 1 + causal_strategy.temporal_advantage * 0.1
             
-            # Calculate distances
-            sl_distance = max(min_sl_distance, current_price * 0.002) * consciousness_factor * vol_factor
+            # Calculate distances - increased base SL to 0.5% to prevent margin issues
+            sl_distance = max(min_sl_distance, current_price * 0.005) * consciousness_factor * vol_factor
             tp_distance = sl_distance * 2 * foresight_factor  # 2:1 RR with foresight boost
             
             # Quantum tunneling can extend TP
@@ -1641,8 +1641,8 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error calculating quantum SL/TP: {e}")
-            # Fallback to simple calculation
-            distance = current_price * 0.002
+            # Fallback to simple calculation - increased to 0.5% for safety
+            distance = current_price * 0.005
             if signal_type == SignalType.BUY:
                 return current_price - distance, current_price + distance * 2
             else:

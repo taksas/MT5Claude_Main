@@ -4,29 +4,36 @@ Trading Configuration Module
 Contains all configuration constants and symbol configurations
 """
 
-# High-profit symbols configuration
+# High-profit symbols configuration - diversified portfolio
 HIGH_PROFIT_SYMBOLS = {
-    # Priority symbol as requested
+    # High volatility pairs first for better diversification
+    "GBPJPY": {"avg_daily_range": 150, "typical_spread": 3, "risk_factor": 0.007, "profit_potential": "very_high"},
+    # Major pairs with good liquidity
+    "EURUSD": {"avg_daily_range": 80, "typical_spread": 1, "risk_factor": 0.01, "profit_potential": "high"},
+    "GBPUSD": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "high"},
     "USDJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "high"},
-    # Exotic Currency Pairs - Extreme Volatility
-    "USDTRY": {"avg_daily_range": 2000, "typical_spread": 50, "risk_factor": 0.005, "profit_potential": "extreme"},
-    "EURTRY": {"avg_daily_range": 2500, "typical_spread": 80, "risk_factor": 0.004, "profit_potential": "extreme"},
-    "USDZAR": {"avg_daily_range": 1834, "typical_spread": 100, "risk_factor": 0.005, "profit_potential": "very_high"},
-    "USDMXN": {"avg_daily_range": 600, "typical_spread": 50, "risk_factor": 0.007, "profit_potential": "high"},
-    "EURNOK": {"avg_daily_range": 800, "typical_spread": 30, "risk_factor": 0.008, "profit_potential": "high"},
-    "EURSEK": {"avg_daily_range": 600, "typical_spread": 30, "risk_factor": 0.008, "profit_potential": "medium_high"},
+    "AUDUSD": {"avg_daily_range": 70, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium_high"},
+    "USDCAD": {"avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium_high"},
+    "NZDUSD": {"avg_daily_range": 65, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium"},
     
     # High-Profit Cross Currency Pairs
     "EURGBP": {"avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, "strategy": "range_trading"},
     "EURAUD": {"avg_daily_range": 110, "typical_spread": 3, "risk_factor": 0.009, "strategy": "trend_following"},
     "EURNZD": {"avg_daily_range": 140, "typical_spread": 4, "risk_factor": 0.008, "strategy": "volatility_breakout"},
     "EURJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.009, "strategy": "risk_sentiment"},
-    "GBPJPY": {"avg_daily_range": 150, "typical_spread": 3, "risk_factor": 0.007, "profit_potential": "very_high"},
     "GBPAUD": {"avg_daily_range": 160, "typical_spread": 4, "risk_factor": 0.007, "profit_potential": "very_high"},
     "GBPNZD": {"avg_daily_range": 200, "typical_spread": 5, "risk_factor": 0.006, "profit_potential": "extreme"},
     "AUDJPY": {"avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.009, "strategy": "carry_trade"},
     "NZDJPY": {"avg_daily_range": 85, "typical_spread": 3, "risk_factor": 0.009, "strategy": "carry_trade"},
     "AUDNZD": {"avg_daily_range": 50, "typical_spread": 3, "risk_factor": 0.010, "strategy": "mean_reversion"},
+    
+    # Exotic Currency Pairs - Extreme Volatility (moved down for lower priority)
+    "USDTRY": {"avg_daily_range": 2000, "typical_spread": 50, "risk_factor": 0.005, "profit_potential": "extreme"},
+    "EURTRY": {"avg_daily_range": 2500, "typical_spread": 80, "risk_factor": 0.004, "profit_potential": "extreme"},
+    "USDZAR": {"avg_daily_range": 1834, "typical_spread": 100, "risk_factor": 0.005, "profit_potential": "very_high"},
+    "USDMXN": {"avg_daily_range": 600, "typical_spread": 50, "risk_factor": 0.007, "profit_potential": "high"},
+    "EURNOK": {"avg_daily_range": 800, "typical_spread": 30, "risk_factor": 0.008, "profit_potential": "high"},
+    "EURSEK": {"avg_daily_range": 600, "typical_spread": 30, "risk_factor": 0.008, "profit_potential": "medium_high"},
     
     # Exotic Metals
     "XPDUSD": {"avg_daily_range": 50, "typical_spread": 100, "risk_factor": 0.005, "volatility": "4%_daily"},
@@ -43,14 +50,14 @@ CONFIG = {
     "API_BASE": "http://172.28.144.1:8000",
     "SYMBOLS": [],  # Will be populated dynamically
     "TIMEFRAME": "M5",
-    "MIN_CONFIDENCE": 0.15,  # 15% minimum confidence (aggressive for more signals)
+    "MIN_CONFIDENCE": 0.30,  # 30% minimum confidence (aggressive for more signals)
     "MIN_QUALITY": 0.25,     # 25% quality threshold
     "MIN_STRATEGIES": 3,     # At least 3 strategies must agree (lowered for debugging)
     "MAX_SPREAD_PIPS": 3.0,  # Maximum 3 pips spread for majors
     "MAX_SPREAD_EXOTIC": 15.0,  # Maximum 15 pips for exotic pairs
     "RISK_PER_TRADE": 0.01,  # 1% risk per trade
     "RISK_PER_EXOTIC": 0.005,  # 0.5% risk for exotic pairs
-    "MAX_DAILY_LOSS": 0.05,  # 5% max daily loss
+    "MAX_DAILY_LOSS": 0.30,  # 30% max daily loss
     "MAX_CONCURRENT": 5,     # Maximum 5 concurrent positions (increased for diversification)
     "MIN_RR_RATIO": 1.0,     # 1:1 minimum risk-reward ratio (lowered for more trades)
     "MIN_RR_EXOTIC": 1.2,    # 1.2:1 for exotic pairs (lowered for more trades)

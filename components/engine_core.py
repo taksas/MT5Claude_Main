@@ -139,10 +139,15 @@ class UltraTradingEngine:
             if self._should_force_trade():
                 self._force_trade()
             
-            # Analyze symbols for opportunities
+            # Analyze symbols for opportunities with rotation
+            # Rotate symbols to avoid always analyzing same ones first
+            import random
+            symbols_to_analyze = self.tradable_symbols[:self.config["MAX_SYMBOLS"]]
+            random.shuffle(symbols_to_analyze)  # Randomize order for fairness
+            
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = []
-                for symbol in self.tradable_symbols[:self.config["MAX_SYMBOLS"]]:
+                for symbol in symbols_to_analyze:
                     future = executor.submit(self._analyze_symbol, symbol)
                     futures.append((symbol, future))
                 
