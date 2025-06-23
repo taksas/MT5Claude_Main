@@ -161,11 +161,17 @@ class MT5APIClient:
     def close_position(self, ticket: int) -> bool:
         """Close a specific position"""
         try:
+            # According to API docs, DELETE requires a JSON body with deviation parameter
             response = requests.delete(
                 f"{self.api_base}/trading/positions/{ticket}",
+                json={"deviation": 20},  # Allow 20 points deviation
                 timeout=5
             )
-            return response.status_code == 200
+            if response.status_code == 200:
+                return True
+            else:
+                logger.error(f"Failed to close position {ticket}: {response.status_code} - {response.text}")
+                return False
         except Exception as e:
             logger.error(f"Failed to close position {ticket}: {e}")
             return False

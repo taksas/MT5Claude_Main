@@ -43,8 +43,15 @@ if account_info:
         'digits': 5
     }
     
+    # Mock account info with leverage
+    account_info = {
+        'balance': balance,
+        'equity': balance,
+        'leverage': 100  # Typical forex leverage
+    }
+    
     position_size = risk_manager.calculate_position_size(
-        test_symbol, sl_distance, current_price, balance, symbol_info
+        test_symbol, sl_distance, current_price, balance, symbol_info, account_info
     )
     
     print(f"\nPosition size calculation for {test_symbol}:")

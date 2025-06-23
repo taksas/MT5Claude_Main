@@ -7,25 +7,70 @@ Contains all configuration constants and symbol configurations
 # High-profit symbols configuration - Only tradable symbols as per UPDATE_INSTRUCTIONS.md
 HIGH_PROFIT_SYMBOLS = {
     # Major pairs with good liquidity
-    "EURUSD": {"avg_daily_range": 80, "typical_spread": 1, "risk_factor": 0.01, "profit_potential": "high"},
-    "GBPUSD": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "high"},
-    "USDJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "high"},
-    "USDCAD": {"avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium_high"},
-    "USDCHF": {"avg_daily_range": 70, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium"},
+    "EURUSD": {
+        "avg_daily_range": 80, "typical_spread": 1, "risk_factor": 0.01, 
+        "profit_potential": "high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.0, "max_rr_ratio": 3.0
+    },
+    "GBPUSD": {
+        "avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, 
+        "profit_potential": "high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.5, "max_rr_ratio": 4.0
+    },
+    "USDJPY": {
+        "avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, 
+        "profit_potential": "high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.0, "max_rr_ratio": 3.0
+    },
+    "USDCAD": {
+        "avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.01, 
+        "profit_potential": "medium_high", "min_rr_ratio": 1.2, "target_rr_ratio": 1.8, "max_rr_ratio": 2.5
+    },
+    "USDCHF": {
+        "avg_daily_range": 70, "typical_spread": 2, "risk_factor": 0.01, 
+        "profit_potential": "medium", "min_rr_ratio": 1.0, "target_rr_ratio": 1.5, "max_rr_ratio": 2.0
+    },
     
-    # High volatility JPY pairs
-    "GBPJPY": {"avg_daily_range": 150, "typical_spread": 3, "risk_factor": 0.007, "profit_potential": "very_high"},
-    "EURJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.009, "strategy": "risk_sentiment"},
-    "CADJPY": {"avg_daily_range": 90, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium_high"},
-    "CHFJPY": {"avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "medium"},
+    # High volatility JPY pairs - higher RR potential
+    "GBPJPY": {
+        "avg_daily_range": 150, "typical_spread": 3, "risk_factor": 0.007, 
+        "profit_potential": "very_high", "min_rr_ratio": 2.0, "target_rr_ratio": 3.0, "max_rr_ratio": 5.0
+    },
+    "EURJPY": {
+        "avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.009, 
+        "strategy": "risk_sentiment", "min_rr_ratio": 1.5, "target_rr_ratio": 2.5, "max_rr_ratio": 4.0
+    },
+    "CADJPY": {
+        "avg_daily_range": 90, "typical_spread": 2, "risk_factor": 0.01, 
+        "profit_potential": "medium_high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.0, "max_rr_ratio": 3.0
+    },
+    "CHFJPY": {
+        "avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.01, 
+        "profit_potential": "medium", "min_rr_ratio": 1.2, "target_rr_ratio": 1.8, "max_rr_ratio": 2.5
+    },
     
-    # Cross Currency Pairs
-    "EURGBP": {"avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, "strategy": "range_trading"},
-    "EURCAD": {"avg_daily_range": 90, "typical_spread": 3, "risk_factor": 0.009, "profit_potential": "medium_high"},
-    "EURCHF": {"avg_daily_range": 50, "typical_spread": 2, "risk_factor": 0.010, "profit_potential": "medium"},
-    "GBPCAD": {"avg_daily_range": 120, "typical_spread": 3, "risk_factor": 0.008, "profit_potential": "high"},
-    "GBPCHF": {"avg_daily_range": 100, "typical_spread": 3, "risk_factor": 0.008, "profit_potential": "high"},
-    "CADCHF": {"avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, "profit_potential": "medium"}
+    # Cross Currency Pairs - adjusted for their characteristics
+    "EURGBP": {
+        "avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, 
+        "strategy": "range_trading", "min_rr_ratio": 1.0, "target_rr_ratio": 1.5, "max_rr_ratio": 2.0
+    },
+    "EURCAD": {
+        "avg_daily_range": 90, "typical_spread": 3, "risk_factor": 0.009, 
+        "profit_potential": "medium_high", "min_rr_ratio": 1.2, "target_rr_ratio": 2.0, "max_rr_ratio": 3.0
+    },
+    "EURCHF": {
+        "avg_daily_range": 50, "typical_spread": 2, "risk_factor": 0.010, 
+        "profit_potential": "medium", "min_rr_ratio": 0.8, "target_rr_ratio": 1.2, "max_rr_ratio": 1.8
+    },
+    "GBPCAD": {
+        "avg_daily_range": 120, "typical_spread": 3, "risk_factor": 0.008, 
+        "profit_potential": "high", "min_rr_ratio": 1.8, "target_rr_ratio": 2.5, "max_rr_ratio": 4.0
+    },
+    "GBPCHF": {
+        "avg_daily_range": 100, "typical_spread": 3, "risk_factor": 0.008, 
+        "profit_potential": "high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.2, "max_rr_ratio": 3.5
+    },
+    "CADCHF": {
+        "avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, 
+        "profit_potential": "medium", "min_rr_ratio": 1.0, "target_rr_ratio": 1.5, "max_rr_ratio": 2.0
+    }
 }
 
 # ULTRA Aggressive Configuration - FORCE TRADES
@@ -42,8 +87,8 @@ CONFIG = {
     "RISK_PER_EXOTIC": 0.005,  # 0.5% risk for exotic pairs
     "MAX_DAILY_LOSS": 0.30,  # 30% max daily loss
     "MAX_CONCURRENT": 5,     # Maximum 5 concurrent positions (increased for diversification)
-    "MIN_RR_RATIO": 1.0,     # 1:1 minimum risk-reward ratio (lowered for more trades)
-    "MIN_RR_EXOTIC": 1.2,    # 1.2:1 for exotic pairs (lowered for more trades)
+    "MIN_RR_RATIO": 0.8,     # 0.8:1 minimum risk-reward ratio (conservative for quick wins)
+    "MIN_RR_EXOTIC": 1.0,    # 1:1 for exotic pairs (balanced risk-reward)
     "TIMEZONE": "Asia/Tokyo",
     "ACCOUNT_CURRENCY": "JPY",
     "SYMBOL_FILTER": "FOREX",

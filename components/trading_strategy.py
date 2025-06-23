@@ -313,6 +313,7 @@ class TradingStrategy:
     def __init__(self):
         self.indicators = quantum_indicators  # Use global quantum instance
         self.symbol_utils = SymbolUtils()
+        self.account_leverage = 1.0  # Default account leverage
         
         # Dynamic category weights with meta-learning
         self.category_weights = {
@@ -336,6 +337,10 @@ class TradingStrategy:
         
         # Ultra-intelligent components
         self.quantum_decision_history = deque(maxlen=100)
+    
+    def set_account_leverage(self, leverage: float):
+        """Set account leverage for T/P and S/L calculations"""
+        self.account_leverage = leverage
         self.consciousness_signals = deque(maxlen=50)
         self.hyperdimensional_cache = {}
         self.causal_graph_memory = deque(maxlen=200)
@@ -802,24 +807,40 @@ class TradingStrategy:
             # Minimal stop loss and take profit
             instrument_type = self.symbol_utils.get_instrument_type(symbol)
             
-            # Use percentage-based stop loss for margin safety
-            # Minimum 3% stop loss to avoid margin calls with 20% maintenance level
-            if instrument_type == 'exotic':
-                sl_percent = 0.05  # 5% for exotic pairs
-                tp_percent = 0.10  # 10% take profit
-            elif instrument_type == 'metal':
-                sl_percent = 0.04  # 4% for metals
-                tp_percent = 0.08  # 8% take profit
-            elif instrument_type == 'crypto':
-                sl_percent = 0.06  # 6% for crypto
-                tp_percent = 0.12  # 12% take profit
-            else:
-                sl_percent = 0.03  # 3% for major pairs
-                tp_percent = 0.06  # 6% take profit
+            # Get symbol-specific configuration
+            symbol_base = symbol.rstrip('#')
+            symbol_config = get_symbol_config(symbol_base)
             
-            # Calculate SL/TP based on percentage
+            # Use conservative percentage-based stop loss
+            # S/L: Based on leverage for margin safety
+            if instrument_type == 'exotic':
+                sl_percent = 0.008   # 0.8% for exotic pairs
+            elif instrument_type == 'metal':
+                sl_percent = 0.006   # 0.6% for metals
+            elif instrument_type == 'crypto':
+                sl_percent = 0.008   # 0.8% for crypto
+            else:
+                sl_percent = 0.004   # 0.4% for major pairs
+            
+            # Calculate S/L distance
             sl_distance = current_price * sl_percent
-            tp_distance = current_price * tp_percent
+            
+            # Use symbol-specific minimum RR ratio for forced trades
+            min_rr = symbol_config.get('min_rr_ratio', 1.5)
+            
+            # For forced trades, use minimum RR but ensure profitability
+            tp_distance = sl_distance * min_rr
+            
+            # Ensure minimum profit after spread
+            typical_spread = symbol_config.get('typical_spread', 2)
+            # Calculate proper pip value based on symbol
+            if 'JPY' in symbol:
+                pip_value = 0.01  # JPY pairs
+                min_tp_distance = (typical_spread * 3) * pip_value  # 3x spread minimum
+            else:
+                pip_value = 0.0001  # Standard pairs
+                min_tp_distance = (typical_spread * 3) * pip_value  # 3x spread minimum
+            tp_distance = max(tp_distance, min_tp_distance)
             
             if signal_type == SignalType.BUY:
                 sl = current_price - sl_distance
@@ -1625,14 +1646,83 @@ class TradingStrategy:
             # Causal foresight adjustment
             foresight_factor = 1 + causal_strategy.temporal_advantage * 0.1
             
-            # Calculate distances - increased base SL to 3% to prevent margin issues and avoid margin calls
-            # With 20% margin maintenance level, 3% stop loss provides safety buffer
-            sl_distance = max(min_sl_distance, current_price * 0.03) * consciousness_factor * vol_factor
-            tp_distance = sl_distance * 2 * foresight_factor  # 2:1 RR with foresight boost
+            # Calculate distances - Ultra-conservative S/L for margin safety
+            # Dynamic S/L based on leverage to prevent margin calls
             
-            # Quantum tunneling can extend TP
-            if quantum_decision.quantum_tunneling_prob > 0.7:
-                tp_distance *= 1.5  # 50% further if likely to break barriers
+            # Get leverage from account info if available
+            leverage = 100  # Default conservative
+            if hasattr(self, 'account_leverage'):
+                leverage = self.account_leverage
+            
+            # Calculate safe S/L based on leverage
+            # With 10% margin usage, we can afford larger S/L
+            if leverage >= 500:
+                base_sl_percent = 0.002  # 0.2% for ultra-high leverage
+            elif leverage >= 200:
+                base_sl_percent = 0.003  # 0.3% for high leverage
+            elif leverage >= 100:
+                base_sl_percent = 0.004  # 0.4% for medium leverage
+            else:
+                base_sl_percent = 0.005  # 0.5% for low leverage
+            
+            sl_distance = max(min_sl_distance, current_price * base_sl_percent)
+            
+            # Apply volatility factor but cap it
+            sl_distance = sl_distance * min(consciousness_factor * vol_factor, 2.0)
+            
+            # Ensure S/L never exceeds 1% to stay well clear of margin calls
+            sl_distance = min(sl_distance, current_price * 0.01)
+            
+            # Dynamic T/P based on symbol characteristics and risk-reward ratios
+            symbol_base = symbol.rstrip('#')
+            symbol_config = get_symbol_config(symbol_base)
+            
+            # Get risk-reward ratios for this symbol
+            min_rr = symbol_config.get('min_rr_ratio', 1.0)
+            target_rr = symbol_config.get('target_rr_ratio', 2.0)
+            max_rr = symbol_config.get('max_rr_ratio', 3.0)
+            
+            # Start with target RR ratio
+            base_rr_ratio = target_rr
+            
+            # Adjust based on market conditions and signal quality
+            if quantum_decision.quantum_tunneling_prob > 0.8:
+                # Very high confidence - aim for higher RR
+                base_rr_ratio = target_rr + (max_rr - target_rr) * 0.5
+            elif quantum_decision.quantum_tunneling_prob > 0.6:
+                # Good confidence - use target RR
+                base_rr_ratio = target_rr
+            else:
+                # Lower confidence - use minimum RR
+                base_rr_ratio = min_rr
+            
+            # Adjust for consciousness and causal factors
+            if consciousness_signal.awareness_level > 0.7:
+                base_rr_ratio *= 1.1  # 10% boost for high awareness
+            
+            if causal_strategy.temporal_advantage > 0.5:
+                base_rr_ratio *= 1.1  # 10% boost for temporal advantage
+            
+            # Calculate T/P distance
+            tp_distance = sl_distance * base_rr_ratio
+            
+            # Dynamic T/P cap based on average daily range
+            avg_daily_range = symbol_config.get('avg_daily_range', 100)
+            max_tp_percent = min(avg_daily_range * 0.00001 * 0.5, 0.03)  # Max 50% of ADR or 3%
+            
+            # Apply realistic cap
+            tp_distance = min(tp_distance, current_price * max_tp_percent)
+            
+            # Ensure minimum profit after spread
+            typical_spread = symbol_config.get('typical_spread', 2)
+            # Calculate proper pip value based on symbol
+            if 'JPY' in symbol:
+                pip_value = 0.01  # JPY pairs
+                min_tp_distance = (typical_spread * 3) * pip_value  # 3x spread minimum
+            else:
+                pip_value = 0.0001  # Standard pairs
+                min_tp_distance = (typical_spread * 3) * pip_value  # 3x spread minimum
+            tp_distance = max(tp_distance, min_tp_distance)
             
             # Calculate final SL/TP
             if signal_type == SignalType.BUY:
@@ -1646,9 +1736,16 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error calculating quantum SL/TP: {e}")
-            # Fallback to simple calculation - increased to 3% for margin safety
-            # With 20% margin maintenance level, 3% stop loss provides safety buffer
-            distance = current_price * 0.03
+            # Fallback to simple calculation with symbol-specific RR
+            symbol_base = symbol.rstrip('#') if hasattr(symbol, 'rstrip') else 'EURUSD'
+            symbol_config = get_symbol_config(symbol_base)
+            
+            # Use conservative S/L
+            sl_distance = current_price * 0.003  # 0.3% S/L
+            
+            # Use minimum RR ratio for the symbol
+            min_rr = symbol_config.get('min_rr_ratio', 1.5)
+            tp_distance = sl_distance * min_rr
             if signal_type == SignalType.BUY:
                 return current_price - distance, current_price + distance * 2
             else:

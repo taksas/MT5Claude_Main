@@ -20,9 +20,15 @@ class RiskManagement:
         self.account_currency = CONFIG["ACCOUNT_CURRENCY"]
         
     def calculate_position_size(self, symbol: str, sl_distance: float, current_price: float, 
-                               balance: float, symbol_info: Dict[str, Any]) -> float:
+                               balance: float, symbol_info: Dict[str, Any], 
+                               account_info: Dict[str, Any] = None) -> float:
         """Calculate position size based on risk management rules"""
         try:
+            # Get account leverage for margin safety
+            leverage = 100  # Default conservative leverage
+            if account_info:
+                leverage = account_info.get('leverage', 100)
+            
             # Get instrument type and risk percentage
             instrument_type = self.symbol_utils.get_instrument_type(symbol)
             risk_percentage = self._get_risk_percentage(symbol, instrument_type)
@@ -73,16 +79,59 @@ class RiskManagement:
                 else:
                     position_size = min(position_size, 0.2)   # Max 0.2 lots for majors
                 
-                # Final safety check: Never use more than 10% of balance for margin
-                # Rough estimate: position value = position_size * contract_size * current_price
-                position_value_estimate = position_size * contract_size * current_price
-                max_position_value = balance * 0.1  # Max 10% of balance
+                # Ultra-conservative fallback for low balance/margin situations
+                if free_margin < 1000:  # Less than 1000 units of currency free
+                    position_size = min_volume  # Use minimum possible
+                    logger.warning(f"Very low free margin ({free_margin:.2f}), using minimum volume: {min_volume}")
                 
-                if position_value_estimate > max_position_value:
-                    # Scale down position size
-                    position_size = (max_position_value / position_value_estimate) * position_size
+                # Critical margin safety check based on leverage
+                # Calculate max position size to keep margin level safe
+                sl_percent = sl_distance / current_price
+                
+                # With high leverage, we need to limit position size dramatically
+                # Target: Keep margin level above 150% after potential S/L hit
+                if leverage >= 500:
+                    max_margin_usage = 0.10  # Use only 10% of available margin
+                elif leverage >= 200:
+                    max_margin_usage = 0.20  # Use only 20% of available margin
+                elif leverage >= 100:
+                    max_margin_usage = 0.30  # Use only 30% of available margin
+                else:
+                    max_margin_usage = 0.50  # Use only 50% of available margin
+                
+                # Calculate maximum safe position value
+                # Available margin for new positions = Free Margin × max_margin_usage
+                # But if we don't have free margin info, use balance as fallback
+                free_margin = balance  # Default to balance
+                if account_info and 'margin_free' in account_info:
+                    free_margin = account_info.get('margin_free', balance)
+                
+                # Maximum position value we can open = free_margin × leverage × usage_percent
+                max_position_value = free_margin * leverage * max_margin_usage
+                actual_position_value = position_size * contract_size * current_price
+                
+                if actual_position_value > max_position_value:
+                    # Scale down position size for safety
+                    original_size = position_size
+                    position_size = (max_position_value / actual_position_value) * position_size
                     position_size = round(position_size / volume_step) * volume_step
                     position_size = max(min_volume, position_size)
+                    
+                    logger.warning(f"Position size reduced for margin safety: {original_size} → {position_size} lots")
+                
+                # Log final calculation details
+                margin_required = actual_position_value / leverage
+                logger.info(f"Position sizing for {symbol}:")
+                logger.info(f"  Leverage: {leverage}:1")
+                logger.info(f"  Balance: {balance:.2f}")
+                logger.info(f"  Free margin: {free_margin:.2f}")
+                logger.info(f"  Risk %: {risk_percentage*100:.1f}%")
+                logger.info(f"  Risk amount: {risk_amount:.2f}")
+                logger.info(f"  S/L distance: {sl_distance:.5f} ({(sl_distance/current_price)*100:.2f}%)")
+                logger.info(f"  Position size: {position_size} lots")
+                logger.info(f"  Position value: {actual_position_value:.2f}")
+                logger.info(f"  Margin required: {margin_required:.2f}")
+                logger.info(f"  Max margin usage: {max_margin_usage*100:.0f}%")
                 
                 return position_size
             else:
@@ -93,7 +142,7 @@ class RiskManagement:
             return CONFIG["MIN_VOLUME"]
     
     def check_account_safety(self, balance: float, equity: float, margin: float, 
-                           daily_pnl: float) -> Tuple[bool, str]:
+                           daily_pnl: float, margin_level: float = None) -> Tuple[bool, str]:
         """Check if account is safe to trade"""
         try:
             # Balance check removed - trade with any balance
@@ -105,8 +154,12 @@ class RiskManagement:
             
             # Check margin level
             if margin > 0:
-                margin_level = (equity / margin) * 100
-                if margin_level < 200:  # Minimum 200% margin level
+                current_margin_level = (equity / margin) * 100
+                if current_margin_level < 150:  # Minimum 150% margin level for safety
+                    return False, f"Margin level too low: {current_margin_level:.0f}%"
+            elif margin_level is not None:
+                # Use provided margin level
+                if margin_level < 150:
                     return False, f"Margin level too low: {margin_level:.0f}%"
             
             # Check drawdown
@@ -190,6 +243,50 @@ class RiskManagement:
         }
         
         return risk_map.get(instrument_type, CONFIG["RISK_PER_TRADE"])
+    
+    def check_margin_safety_before_trade(self, symbol: str, position_size: float, 
+                                       current_price: float, sl_distance: float,
+                                       account_info: Dict[str, Any]) -> Tuple[bool, str]:
+        """Check if opening this position would be safe for margin requirements"""
+        try:
+            balance = account_info.get('balance', 0)
+            equity = account_info.get('equity', balance)
+            margin = account_info.get('margin', 0)
+            margin_free = account_info.get('margin_free', equity)
+            leverage = account_info.get('leverage', 100)
+            
+            # Calculate margin required for this position
+            contract_size = 100000  # Standard lot
+            position_value = position_size * contract_size * current_price
+            margin_required = position_value / leverage
+            
+            # Check if we have enough free margin
+            if margin_required > margin_free:
+                return False, f"Insufficient free margin: {margin_free:.2f} < {margin_required:.2f}"
+            
+            # Calculate new margin level after opening position
+            new_margin = margin + margin_required
+            new_margin_level = (equity / new_margin) * 100 if new_margin > 0 else float('inf')
+            
+            # Ensure margin level stays above 150%
+            if new_margin_level < 150:
+                return False, f"Opening position would drop margin level to {new_margin_level:.0f}%"
+            
+            # Calculate worst-case margin level if S/L is hit
+            sl_percent = sl_distance / current_price
+            potential_loss = position_value * sl_percent
+            worst_case_equity = equity - potential_loss
+            worst_case_margin_level = (worst_case_equity / new_margin) * 100 if new_margin > 0 else 0
+            
+            # Ensure we stay above margin call level (50%) even if S/L is hit
+            if worst_case_margin_level < 75:  # Safety buffer above 50% margin call
+                return False, f"S/L hit would drop margin level to {worst_case_margin_level:.0f}%"
+            
+            return True, f"Safe to trade: Margin level {new_margin_level:.0f}% → {worst_case_margin_level:.0f}% (worst case)"
+            
+        except Exception as e:
+            logger.error(f"Error checking margin safety: {e}")
+            return False, "Margin safety check failed"
     
     def _calculate_pip_value(self, symbol: str, current_price: float, 
                            contract_size: float, symbol_info: Dict[str, Any]) -> float:

@@ -47,6 +47,7 @@ class UltraTradingEngine:
         self.last_trade_time = {}
         self.last_global_trade_time = 0
         self.balance = None
+        self.account_info = None  # Store account info including leverage
         self.running = False
         self.trades_this_hour = 0
         self.force_trade_attempts = 0
@@ -116,9 +117,14 @@ class UltraTradingEngine:
             # Update account info
             account_info = self.api_client.get_account_info()
             if account_info:
+                self.account_info = account_info  # Store full account info
                 self.balance = account_info.get('balance', self.balance)
                 equity = account_info.get('equity', self.balance)
                 margin = account_info.get('margin', 0)
+                
+                # Update strategy with account leverage
+                leverage = account_info.get('leverage', 100)
+                self.strategy.set_account_leverage(leverage)
                 
                 # Check account safety
                 safe, reason = self.risk_manager.check_account_safety(
@@ -299,7 +305,7 @@ class UltraTradingEngine:
             # Calculate position size
             sl_distance = abs(signal.entry - signal.sl)
             volume = self.risk_manager.calculate_position_size(
-                symbol, sl_distance, signal.entry, self.balance, symbol_info
+                symbol, sl_distance, signal.entry, self.balance, symbol_info, self.account_info
             )
             
             # Validate trade parameters
@@ -309,6 +315,17 @@ class UltraTradingEngine:
             if not valid:
                 logger.warning(f"Invalid trade parameters for {symbol}: {reason}")
                 return
+            
+            # Check margin safety before placing order
+            if self.account_info:
+                margin_safe, margin_reason = self.risk_manager.check_margin_safety_before_trade(
+                    symbol, volume, signal.entry, sl_distance, self.account_info
+                )
+                if not margin_safe:
+                    logger.warning(f"⚠️ Margin safety check failed for {symbol}: {margin_reason}")
+                    logger.info(f"   Free margin: {self.account_info.get('margin_free', 0):.2f}")
+                    logger.info(f"   Current margin level: {self.account_info.get('margin_level', 0):.0f}%")
+                    return
             
             # Place order
             ticket = self.order_manager.place_order(signal, symbol, volume)
