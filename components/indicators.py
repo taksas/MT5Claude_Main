@@ -857,10 +857,11 @@ class QuantumUltraIntelligentIndicators:
             
             if len(swing_highs) >= 3 and len(swing_lows) >= 2:
                 # Simplified Gartley pattern detection
-                X = df['high'].iloc[swing_highs[-3]]
-                A = df['low'].iloc[swing_lows[-2]]
-                B = df['high'].iloc[swing_highs[-2]]
-                C = df['low'].iloc[swing_lows[-1]]
+                # Use loc with actual index values instead of iloc with positions
+                X = df.loc[swing_highs[-3], 'high']
+                A = df.loc[swing_lows[-2], 'low']
+                B = df.loc[swing_highs[-2], 'high']
+                C = df.loc[swing_lows[-1], 'low']
                 D = current_price
                 
                 XA = A - X
@@ -885,7 +886,9 @@ class QuantumUltraIntelligentIndicators:
                             'bullish' if D < C else 'bearish',
                             confidence,
                             target,
-                            stop
+                            stop,
+                            0.5,  # quantum_probability
+                            20    # time_horizon
                         ))
             
         except Exception as e:
@@ -925,7 +928,9 @@ class QuantumUltraIntelligentIndicators:
                             'bullish',
                             confidence,
                             target,
-                            stop
+                            stop,
+                            0.5,  # quantum_probability
+                            20    # time_horizon
                         ))
             
         except Exception as e:
@@ -1031,7 +1036,9 @@ class QuantumUltraIntelligentIndicators:
                             'bullish',
                             confidence,
                             target,
-                            stop
+                            stop,
+                            0.5,  # quantum_probability
+                            20    # time_horizon
                         ))
                     else:
                         # Resistance level
@@ -1044,7 +1051,9 @@ class QuantumUltraIntelligentIndicators:
                             'bearish',
                             confidence,
                             target,
-                            stop
+                            stop,
+                            0.5,  # quantum_probability
+                            20    # time_horizon
                         ))
             
         except Exception as e:
@@ -1054,7 +1063,7 @@ class QuantumUltraIntelligentIndicators:
     
     def _quantum_statistical_analysis(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Quantum-enhanced statistical analysis with wave function collapse simulation"""
-        stats = {}
+        stat_results = {}
         
         try:
             returns = df['close'].pct_change().dropna()
@@ -1062,7 +1071,7 @@ class QuantumUltraIntelligentIndicators:
             # GARCH-like volatility clustering
             squared_returns = returns ** 2
             garch_vol = squared_returns.rolling(20).mean().iloc[-1] ** 0.5
-            stats['garch_volatility'] = garch_vol
+            stat_results['garch_volatility'] = garch_vol
             
             # Regime switching probability
             bull_returns = returns[returns > 0]
@@ -1080,22 +1089,22 @@ class QuantumUltraIntelligentIndicators:
                 bull_prob = stats.norm.pdf(last_return, bull_mean, bull_std)
                 bear_prob = stats.norm.pdf(last_return, bear_mean, bear_std)
                 
-                stats['bull_regime_probability'] = bull_prob / (bull_prob + bear_prob)
+                stat_results['bull_regime_probability'] = bull_prob / (bull_prob + bear_prob)
             else:
-                stats['bull_regime_probability'] = 0.5
+                stat_results['bull_regime_probability'] = 0.5
             
             # Entropy (market uncertainty)
             if len(returns) >= 50:
                 hist, _ = np.histogram(returns.iloc[-50:], bins=10)
                 hist = hist / hist.sum()
                 entropy = -np.sum(hist * np.log(hist + 1e-10))
-                stats['market_entropy'] = entropy / np.log(10)  # Normalized
+                stat_results['market_entropy'] = entropy / np.log(10)  # Normalized
             else:
-                stats['market_entropy'] = 0.5
+                stat_results['market_entropy'] = 0.5
             
             # Jump detection
             threshold = 3 * returns.rolling(20).std().iloc[-1]
-            stats['jump_detected'] = abs(returns.iloc[-1]) > threshold
+            stat_results['jump_detected'] = abs(returns.iloc[-1]) > threshold
             
             # Microstructure noise estimation
             if len(df) >= 100:
@@ -1103,19 +1112,19 @@ class QuantumUltraIntelligentIndicators:
                 rv_5min = (returns ** 2).sum()
                 rv_15min = (returns.iloc[::3] ** 2).sum() * 3
                 noise_ratio = 1 - (rv_15min / rv_5min)
-                stats['noise_ratio'] = max(0, min(1, noise_ratio))
+                stat_results['noise_ratio'] = max(0, min(1, noise_ratio))
             else:
-                stats['noise_ratio'] = 0.1
+                stat_results['noise_ratio'] = 0.1
             
             # Tail risk measures
             if len(returns) >= 100:
                 var_95 = np.percentile(returns, 5)
                 cvar_95 = returns[returns <= var_95].mean()
-                stats['value_at_risk_95'] = var_95
-                stats['conditional_var_95'] = cvar_95
+                stat_results['value_at_risk_95'] = var_95
+                stat_results['conditional_var_95'] = cvar_95
             else:
-                stats['value_at_risk_95'] = -0.02
-                stats['conditional_var_95'] = -0.03
+                stat_results['value_at_risk_95'] = -0.02
+                stat_results['conditional_var_95'] = -0.03
             
         except Exception as e:
             logger.error(f"Error in statistical analysis: {e}")
@@ -1126,23 +1135,23 @@ class QuantumUltraIntelligentIndicators:
             returns_squared = returns ** 2
             wave_function = np.exp(-returns_squared / (2 * returns.std() ** 2))
             collapse_probability = wave_function.iloc[-1]
-            stats['wave_collapse_probability'] = collapse_probability
+            stat_results['wave_collapse_probability'] = collapse_probability
             
             # Heisenberg uncertainty in price/momentum
             price_uncertainty = returns.std()
             momentum_uncertainty = returns.diff().std()
-            stats['heisenberg_uncertainty'] = price_uncertainty * momentum_uncertainty
+            stat_results['heisenberg_uncertainty'] = price_uncertainty * momentum_uncertainty
             
             # Quantum tunneling probability (breakthrough levels)
             resistance_level = df['high'].rolling(20).max().iloc[-1]
             support_level = df['low'].rolling(20).min().iloc[-1]
             barrier_height = (resistance_level - current_price) / current_price
-            stats['quantum_tunneling_prob'] = np.exp(-abs(barrier_height) * 100)
+            stat_results['quantum_tunneling_prob'] = np.exp(-abs(barrier_height) * 100)
             
         except Exception as e:
             logger.error(f"Error in quantum statistical enhancements: {e}")
             
-        return stats
+        return stat_results
     
     def _analyze_microstructure(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Ultra-intelligent market microstructure analysis for HFT-level insights"""
@@ -1526,7 +1535,7 @@ class QuantumUltraIntelligentIndicators:
             
             # Market breadth component
             if len(df) >= 50:
-                advances = sum(df['close'].iloc[-50:] > df['close'].iloc[-51:-1])
+                advances = sum(df['close'].iloc[-50:].values > df['close'].iloc[-51:-1].values)
                 declines = 50 - advances
                 breadth_ratio = (advances - declines) / 50
                 fear_greed_components.append(breadth_ratio)
@@ -1598,7 +1607,7 @@ class QuantumUltraIntelligentIndicators:
             
             # Composite sentiment index (enhanced)
             sentiment['composite_sentiment'] = (
-                sentiment['fear_greed_index'] * 0.20 +
+                sentiment.get('fear_greed_index', 0) * 0.20 +
                 sentiment.get('news_sentiment_score', 0.5) * 0.15 +
                 sentiment.get('social_media_sentiment', 0.5) * 0.15 +
                 sentiment['pressure_ratio'] / 2 * 0.15 +
@@ -1918,7 +1927,8 @@ class QuantumUltraIntelligentIndicators:
         try:
             if hasattr(self, 'social_sentiment_simulator'):
                 # Update fear/greed memory
-                self.social_sentiment_simulator['fear_greed_memory'].append(sentiment.get('fear_greed_index', 0))
+                if 'fear_greed_memory' in self.social_sentiment_simulator:
+                    self.social_sentiment_simulator['fear_greed_memory'].append(sentiment.get('fear_greed_index', 0))
                 
                 # Determine sentiment regime
                 avg_sentiment = sentiment.get('composite_sentiment', 0.5)
@@ -1950,10 +1960,11 @@ class QuantumUltraIntelligentIndicators:
                 # Update event calendar (simplified)
                 if abs(sentiment.get('event_impact', 0)) > 0.5:
                     event_time = datetime.now(timezone.utc).isoformat()
-                    self.social_sentiment_simulator['event_calendar'][event_time] = {
-                        'impact': sentiment.get('event_impact', 0),
-                        'type': sentiment.get('event_type', 'unknown')
-                    }
+                    if 'event_calendar' in self.social_sentiment_simulator:
+                        self.social_sentiment_simulator['event_calendar'][event_time] = {
+                            'impact': sentiment.get('event_impact', 0),
+                            'type': sentiment.get('event_type', 'unknown')
+                        }
                 
         except Exception as e:
             logger.error(f"Error updating sentiment state: {e}")
@@ -2380,15 +2391,21 @@ class QuantumUltraIntelligentIndicators:
             attended.extend(feature_vec * weight)
         return np.array(attended)
     
-    def _quantum_feature_superposition(self, features: Dict[str, np.ndarray], quantum_state: Dict) -> Dict[str, Any]:
+    def _quantum_feature_superposition(self, features: Dict[str, np.ndarray], quantum_state: Any) -> Dict[str, Any]:
         """Apply quantum superposition principles to features"""
         quantum_features = {}
         
         try:
             # Extract quantum properties
-            coherence = quantum_state.get('coherence', 0.5)
-            entanglement = quantum_state.get('entanglement', 0.5)
-            amplitude = quantum_state.get('amplitude', 1.0)
+            if isinstance(quantum_state, dict):
+                coherence = quantum_state.get('coherence', 0.5)
+                entanglement = quantum_state.get('entanglement', 0.5)
+                amplitude = quantum_state.get('amplitude', 1.0)
+            else:
+                # Handle QuantumState object
+                coherence = getattr(quantum_state, 'coherence', 0.5)
+                entanglement = getattr(quantum_state, 'entanglement', 0.5)
+                amplitude = getattr(quantum_state, 'amplitude', 1.0)
             
             # Create superposition of bullish and bearish states
             bullish_features = []
@@ -3272,11 +3289,13 @@ class QuantumUltraIntelligentIndicators:
                     if np.sign(returns.iloc[i]) == np.sign(returns.iloc[i-1]):
                         consecutive_same += 1
                 
-                self.market_consciousness['collective_behavior_model']['herd_strength'] = consecutive_same / len(returns)
+                if 'collective_behavior_model' in self.market_consciousness:
+                    self.market_consciousness['collective_behavior_model']['herd_strength'] = consecutive_same / len(returns)
                 
                 # Contrarian opportunity
                 extreme_moves = abs(returns) > returns.std() * 2
-                self.market_consciousness['collective_behavior_model']['contrarian_opportunity'] = extreme_moves.sum() / len(returns)
+                if 'collective_behavior_model' in self.market_consciousness:
+                    self.market_consciousness['collective_behavior_model']['contrarian_opportunity'] = extreme_moves.sum() / len(returns)
             
             # Update consciousness state
             if self.market_consciousness['awareness_level'] > 0.8:
@@ -5287,8 +5306,8 @@ class QuantumUltraIntelligentIndicators:
             'modification_history_size': 100
         }
     
-    def _initialize_attention_mechanism(self) -> Dict[str, Any]:
-        """Initialize multi-head attention mechanism"""
+    def _initialize_multihead_attention_config(self) -> Dict[str, Any]:
+        """Initialize multi-head attention mechanism configuration"""
         return {
             'n_heads': 8,
             'head_dim': 64,
@@ -5307,8 +5326,8 @@ class QuantumUltraIntelligentIndicators:
             'nlp_model': 'transformer_based'
         }
     
-    def _initialize_risk_engine(self) -> Dict[str, Any]:
-        """Initialize comprehensive risk management engine"""
+    def _initialize_risk_engine_config(self) -> Dict[str, Any]:
+        """Initialize comprehensive risk management engine configuration"""
         return {
             'risk_metrics': ['var', 'cvar', 'omega', 'sortino', 'calmar'],
             'confidence_levels': [0.95, 0.99],
@@ -5317,8 +5336,8 @@ class QuantumUltraIntelligentIndicators:
             'risk_limits': {'max_var': 0.02, 'max_drawdown': 0.1}
         }
     
-    def _initialize_market_consciousness(self) -> Dict[str, Any]:
-        """Initialize market consciousness modeling"""
+    def _initialize_market_consciousness_config(self) -> Dict[str, Any]:
+        """Initialize market consciousness modeling configuration"""
         return {
             'awareness_level': 0.5,
             'perception_delay': 5,

@@ -52,8 +52,9 @@ class MarketData:
         
         try:
             data = self.api_client.get_market_history(symbol, CONFIG["TIMEFRAME"], count)
-            if data and 'candles' in data:
-                df = pd.DataFrame(data['candles'])
+            if data:
+                # API returns list directly, not dict with candles
+                df = pd.DataFrame(data)
                 df['time'] = pd.to_datetime(df['time'])
                 df = df.set_index('time')
                 

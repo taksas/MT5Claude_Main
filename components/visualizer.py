@@ -93,23 +93,9 @@ class TradingVisualizer:
         
     def get_history(self) -> List[Dict]:
         """Fetch today's trade history"""
-        try:
-            resp = requests.get(f"{self.api_base}/trading/history", timeout=2)
-            if resp.status_code == 200:
-                # Filter for today's trades
-                today = datetime.now().date()
-                history = resp.json()
-                today_trades = []
-                for trade in history:
-                    try:
-                        trade_date = datetime.fromisoformat(trade['time_done'].replace('Z', '+00:00')).date()
-                        if trade_date == today:
-                            today_trades.append(trade)
-                    except:
-                        pass
-                return today_trades
-        except:
-            pass
+        # Note: History endpoint not available in current API
+        # This would need to be implemented in the MT5 Bridge API
+        # For now, return empty list
         return []
         
     def update_display_data(self):

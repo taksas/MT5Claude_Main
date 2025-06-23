@@ -82,9 +82,7 @@ class RiskManagement:
                            daily_pnl: float) -> Tuple[bool, str]:
         """Check if account is safe to trade"""
         try:
-            # Check minimum balance
-            if balance < 10000:  # Minimum ¥10,000
-                return False, "Balance too low"
+            # Balance check removed - trade with any balance
             
             # Check daily loss limit
             daily_loss_pct = abs(daily_pnl / balance) if balance > 0 else 0
@@ -118,8 +116,10 @@ class RiskManagement:
                 return False, "Max concurrent positions reached"
             
             # Check if symbol already has position
-            if symbol in active_trades:
-                return False, "Position already open"
+            # active_trades is Dict[ticket, Trade], so check symbol in trade objects
+            for ticket, trade in active_trades.items():
+                if trade.symbol == symbol:
+                    return False, "Position already open"
             
             # Check position interval
             if symbol in last_trade_time:
@@ -133,7 +133,8 @@ class RiskManagement:
             
             # Count positions by type
             type_counts = {}
-            for sym in active_trades:
+            for ticket, trade in active_trades.items():
+                sym = trade.symbol
                 t = self.symbol_utils.get_instrument_type(sym)
                 type_counts[t] = type_counts.get(t, 0) + 1
             

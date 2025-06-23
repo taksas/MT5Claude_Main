@@ -50,10 +50,10 @@ class MT5APIClient:
     def discover_symbols(self) -> List[str]:
         """Discover all tradable symbols"""
         try:
-            response = requests.get(f"{self.api_base}/market/symbols", timeout=10)
+            response = requests.get(f"{self.api_base}/market/symbols/tradable", timeout=10)
             if response.status_code == 200:
-                data = response.json()
-                return data.get('symbols', [])
+                # Response is a list of symbol names
+                return response.json()
             return []
         except Exception as e:
             logger.error(f"Failed to discover symbols: {e}")
@@ -62,7 +62,9 @@ class MT5APIClient:
     def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get symbol information"""
         try:
-            response = requests.get(f"{self.api_base}/market/symbols/{quote(symbol)}", timeout=5)
+            # URL encode the symbol (# becomes %23)
+            encoded_symbol = quote(symbol)
+            response = requests.get(f"{self.api_base}/market/symbols/{encoded_symbol}", timeout=5)
             if response.status_code == 200:
                 return response.json()
             return None
@@ -73,17 +75,28 @@ class MT5APIClient:
     def get_current_price(self, symbol: str) -> Optional[Dict[str, float]]:
         """Get current price for a symbol"""
         try:
+            # Get price from symbol info
+            symbol_info = self.get_symbol_info(symbol)
+            if symbol_info and 'bid' in symbol_info and 'ask' in symbol_info:
+                return {
+                    'bid': symbol_info['bid'],
+                    'ask': symbol_info['ask']
+                }
+            
+            # Fallback: get latest candle
             response = requests.post(
-                f"{self.api_base}/market/tick",
-                json={"symbol": symbol},
+                f"{self.api_base}/market/history",
+                json={"symbol": symbol, "timeframe": "M1", "count": 1},
                 timeout=5
             )
             if response.status_code == 200:
-                data = response.json()
-                return {
-                    'bid': data.get('bid', 0),
-                    'ask': data.get('ask', 0)
-                }
+                candles = response.json()
+                if candles and len(candles) > 0:
+                    close_price = candles[0]['close']
+                    return {
+                        'bid': close_price,
+                        'ask': close_price  # Using close as both bid/ask
+                    }
             return None
         except Exception as e:
             logger.error(f"Failed to get price for {symbol}: {e}")
@@ -116,9 +129,10 @@ class MT5APIClient:
                 json=order,
                 timeout=10
             )
-            if response.status_code == 200:
+            if response.status_code in [200, 201]:
                 data = response.json()
-                return data.get('ticket')
+                # The API returns 'order' field, not 'ticket'
+                return data.get('order') or data.get('ticket')
             else:
                 logger.error(f"Order failed: {response.text}")
             return None
@@ -132,7 +146,13 @@ class MT5APIClient:
             response = requests.get(f"{self.api_base}/trading/positions", timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                return data.get('positions', [])
+                # API returns list directly
+                if isinstance(data, list):
+                    return data
+                # Fallback if it's a dict with positions key
+                elif isinstance(data, dict):
+                    return data.get('positions', [])
+                return []
             return []
         except Exception as e:
             logger.error(f"Failed to get positions: {e}")

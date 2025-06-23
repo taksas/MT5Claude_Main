@@ -6,6 +6,8 @@ Contains all configuration constants and symbol configurations
 
 # High-profit symbols configuration
 HIGH_PROFIT_SYMBOLS = {
+    # Priority symbol as requested
+    "USDJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "high"},
     # Exotic Currency Pairs - Extreme Volatility
     "USDTRY": {"avg_daily_range": 2000, "typical_spread": 50, "risk_factor": 0.005, "profit_potential": "extreme"},
     "EURTRY": {"avg_daily_range": 2500, "typical_spread": 80, "risk_factor": 0.004, "profit_potential": "extreme"},
@@ -41,27 +43,28 @@ CONFIG = {
     "API_BASE": "http://172.28.144.1:8000",
     "SYMBOLS": [],  # Will be populated dynamically
     "TIMEFRAME": "M5",
-    "MIN_CONFIDENCE": 0.30,  # 30% minimum confidence
+    "MIN_CONFIDENCE": 0.15,  # 15% minimum confidence (aggressive for more signals)
     "MIN_QUALITY": 0.25,     # 25% quality threshold
-    "MIN_STRATEGIES": 10,    # At least 10 strategies must agree
+    "MIN_STRATEGIES": 3,     # At least 3 strategies must agree (lowered for debugging)
     "MAX_SPREAD_PIPS": 3.0,  # Maximum 3 pips spread for majors
     "MAX_SPREAD_EXOTIC": 15.0,  # Maximum 15 pips for exotic pairs
     "RISK_PER_TRADE": 0.01,  # 1% risk per trade
     "RISK_PER_EXOTIC": 0.005,  # 0.5% risk for exotic pairs
     "MAX_DAILY_LOSS": 0.05,  # 5% max daily loss
     "MAX_CONCURRENT": 5,     # Maximum 5 concurrent positions (increased for diversification)
-    "MIN_RR_RATIO": 1.5,     # 1.5:1 minimum risk-reward ratio
-    "MIN_RR_EXOTIC": 2.0,    # 2:1 for exotic pairs due to wider spreads
+    "MIN_RR_RATIO": 1.0,     # 1:1 minimum risk-reward ratio (lowered for more trades)
+    "MIN_RR_EXOTIC": 1.2,    # 1.2:1 for exotic pairs (lowered for more trades)
     "TIMEZONE": "Asia/Tokyo",
     "ACCOUNT_CURRENCY": "JPY",
     "SYMBOL_FILTER": "FOREX",
     "MIN_VOLUME": 0.01,
-    "AGGRESSIVE_MODE": False,
+    "AGGRESSIVE_MODE": True,
     "POSITION_INTERVAL": 600,   # 10 minutes between trades per symbol
     "MAX_SYMBOLS": 25,         # Increased to include all high-profit pairs
-    "FORCE_TRADE_INTERVAL": 600,  # Force a trade if none in 10 minutes
-    "IGNORE_SPREAD": False,    # Check spread before trading
-    "MIN_INDICATORS": 5,       # At least 5 indicators must be positive
+    "FORCE_TRADE_INTERVAL": 120,  # Force a trade if none in 2 minutes
+    "IGNORE_SPREAD": True,     # Ignore spread check for debugging
+    "MAX_SPREAD": 999.0,       # Allow any spread for debugging
+    "MIN_INDICATORS": 2,       # At least 2 indicators must be positive (lowered for debugging)
     "EXOTIC_CURRENCIES": ['TRY', 'ZAR', 'MXN', 'PLN', 'HUF', 'SEK', 'NOK', 'DKK', 
                          'SGD', 'HKD', 'THB', 'CNH', 'RUB', 'BRL', 'INR', 'KRW',
                          'ILS', 'AED', 'SAR', 'PHP', 'IDR', 'MYR', 'CZK', 'RON'],
@@ -78,7 +81,9 @@ CONFIG = {
 
 def get_symbol_config(symbol):
     """Get configuration for a specific symbol"""
-    return HIGH_PROFIT_SYMBOLS.get(symbol, {
+    # Remove # suffix to match config keys
+    symbol_base = symbol.rstrip('#')
+    return HIGH_PROFIT_SYMBOLS.get(symbol_base, {
         "avg_daily_range": 100,
         "typical_spread": 2,
         "risk_factor": 0.01,

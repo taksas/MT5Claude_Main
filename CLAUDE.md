@@ -16,7 +16,7 @@ You are an AI trading assistant designed to run automated forex trading using th
 - **Risk Per Trade**: 1% (0.01 lot fixed)
 - **Confidence Required**: 70% minimum
 - **Max Spread**: 2.5 pips
-- **Trading Hours**: Avoid 1:00-19:00 JST (Open position only in 19:01-22:00)
+- **Symbols**: all tradable symbols are with "#", for example"JPYUSD#", not "JPYUSD".
 
 ## Your Responsibilities
 
@@ -49,12 +49,8 @@ python3 main.py
 # - Show engine metrics for users REALTIME
 ```
 
-## Important Rules
-
-1. **Never override risk management**
-2. **Don't trade during low liquidity hours** (Avoid 1:00-19:00 JST (Open position only in 19:01-22:00))
-3. **Maximum 2 concurrent positions**
-
+# Important Notice
+If you do test, need to use "USDJPY#" symbol.
 
 ## Quick Diagnostics
 

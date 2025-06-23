@@ -79,7 +79,28 @@ class UltraTradingEngine:
         logger.info(f"📊 Monitoring {len(self.tradable_symbols)} symbols")
         
         self.running = True
+        
+        # Start the main trading loop
+        self.run()
+        
         return True
+    
+    def run(self):
+        """Main trading loop"""
+        logger.info("📈 Starting main trading loop...")
+        
+        while self.running:
+            try:
+                self.run_once()
+                time.sleep(CONFIG.get("LOOP_DELAY", 1))  # Default 1 second delay
+            except KeyboardInterrupt:
+                logger.info("Keyboard interrupt received")
+                break
+            except Exception as e:
+                logger.error(f"Error in main loop: {e}")
+                time.sleep(5)  # Wait before retrying
+        
+        logger.info("📉 Main trading loop stopped")
     
     def stop(self):
         """Stop trading engine"""
@@ -141,8 +162,8 @@ class UltraTradingEngine:
         try:
             all_symbols = self.api_client.discover_symbols()
             
-            # Start with high-profit symbols
-            priority_symbols = list(HIGH_PROFIT_SYMBOLS.keys())
+            # Start with high-profit symbols (add # suffix)
+            priority_symbols = [s + "#" for s in HIGH_PROFIT_SYMBOLS.keys()]
             
             # Filter all symbols
             filtered_symbols = []
@@ -151,19 +172,25 @@ class UltraTradingEngine:
                 if any(x in symbol.lower() for x in ['_i', '.i', 'mini', 'micro']):
                     continue
                 
-                # Get instrument type
-                instrument_type = self.symbol_utils.get_instrument_type(symbol)
+                # Get instrument type (strip # for checking)
+                symbol_base = symbol.rstrip('#')
+                instrument_type = self.symbol_utils.get_instrument_type(symbol_base)
                 
                 # Add based on configuration
                 if self.config["SYMBOL_FILTER"] == "ALL":
                     filtered_symbols.append(symbol)
                 elif self.config["SYMBOL_FILTER"] == "FOREX" and instrument_type in ['major', 'exotic']:
                     filtered_symbols.append(symbol)
-                elif symbol in priority_symbols:
+                elif symbol in priority_symbols or symbol_base in HIGH_PROFIT_SYMBOLS:
                     filtered_symbols.append(symbol)
             
             # Combine priority and filtered symbols
-            final_symbols = priority_symbols.copy()
+            final_symbols = []
+            # First add priority symbols that exist in all_symbols
+            for symbol in priority_symbols:
+                if symbol in all_symbols:
+                    final_symbols.append(symbol)
+            # Then add other filtered symbols
             for symbol in filtered_symbols:
                 if symbol not in final_symbols:
                     final_symbols.append(symbol)
@@ -177,14 +204,7 @@ class UltraTradingEngine:
     
     def _is_trading_hours(self) -> bool:
         """Check if current time is within trading hours"""
-        now = datetime.now(self.timezone)
-        hour = now.hour
-        
-        # Avoid 1:00-19:00 JST (low liquidity)
-        if 1 <= hour < 19:
-            return False
-        
-        # Optimal hours: 19:00-22:00 JST
+        # Trading hours check disabled - trade 24/7
         return True
     
     def _should_force_trade(self) -> bool:

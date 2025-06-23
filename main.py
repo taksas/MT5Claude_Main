@@ -58,7 +58,7 @@ class UltraTradingSystem:
             if self.mode == 'engine' or self.mode == 'both':
                 # Import and run engine
                 logger.info("Starting Ultra Trading Engine...")
-                from components.ultra_trading_engine import UltraTradingEngine
+                from components.engine_core import UltraTradingEngine
                 self.engine = UltraTradingEngine()
                 
                 if self.visualize and self.mode == 'engine':
@@ -91,7 +91,7 @@ class UltraTradingSystem:
                 
                 # Engine process
                 def run_engine(queue):
-                    from components.ultra_trading_engine import UltraTradingEngine
+                    from components.engine_core import UltraTradingEngine
                     engine = UltraTradingEngine(signal_queue=queue)
                     engine.start()
                 

@@ -23,14 +23,17 @@ class OrderManagement:
     def place_order(self, signal: Signal, symbol: str, volume: float) -> Optional[int]:
         """Place trading order"""
         try:
+            # Prepare order according to API specification
             order = {
+                "action": 1,  # TRADE_ACTION_DEAL (market order)
                 "symbol": symbol,
-                "order_type": signal.type.value,
                 "volume": volume,
-                "price": signal.entry,
+                "type": 0 if signal.type == SignalType.BUY else 1,  # ORDER_TYPE_BUY or ORDER_TYPE_SELL
                 "sl": signal.sl,
                 "tp": signal.tp,
-                "comment": f"Ultra100_{signal.reason[:20]}"
+                "comment": f"Ultra100_{signal.reason[:20]}",
+                "deviation": 20,  # Allow 20 points deviation
+                "magic": 100100  # Magic number for identification
             }
             
             logger.info(f"📊 Placing {signal.type.value} order for {symbol}")
