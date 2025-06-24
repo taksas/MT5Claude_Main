@@ -147,10 +147,11 @@ class RiskManagement:
         try:
             # Balance check removed - trade with any balance
             
-            # Check daily loss limit
-            daily_loss_pct = abs(daily_pnl / balance) if balance > 0 else 0
-            if daily_loss_pct > CONFIG["MAX_DAILY_LOSS"]:
-                return False, f"Daily loss limit exceeded: {daily_loss_pct:.1%}"
+            # Check daily loss limit - only check if P&L is negative
+            if daily_pnl < 0 and balance > 0:
+                daily_loss_pct = abs(daily_pnl) / balance
+                if daily_loss_pct > CONFIG["MAX_DAILY_LOSS"]:
+                    return False, f"Daily loss limit exceeded: {daily_loss_pct:.1%} (Loss: {daily_pnl:.2f})"
             
             # Check margin level
             if margin > 0:

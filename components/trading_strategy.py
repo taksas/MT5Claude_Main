@@ -337,6 +337,9 @@ class TradingStrategy:
         
         # Ultra-intelligent components
         self.quantum_decision_history = deque(maxlen=100)
+        
+        # Initialize quantum parameters
+        self.planck_constant = 1e-10  # Market Planck constant
     
     def set_account_leverage(self, leverage: float):
         """Set account leverage for T/P and S/L calculations"""
@@ -727,7 +730,7 @@ class TradingStrategy:
                     
                     # Ultra-intelligent stop loss and take profit calculation
                     sl, tp = self._calculate_quantum_sl_tp(
-                        signal_type, current_price, df,
+                        symbol, signal_type, current_price, df,
                         quantum_decision, consciousness_signal,
                         hyperdim_strategy, causal_strategy
                     )
@@ -811,19 +814,20 @@ class TradingStrategy:
             symbol_base = symbol.rstrip('#')
             symbol_config = get_symbol_config(symbol_base)
             
-            # Use conservative percentage-based stop loss
-            # S/L: Based on leverage for margin safety
+            # Use wider stop loss to allow for spread and floating losses
+            # S/L: Based on instrument volatility and spread characteristics
             if instrument_type == 'exotic':
-                sl_percent = 0.008   # 0.8% for exotic pairs
+                sl_percent = 0.025   # 2.5% for exotic pairs
             elif instrument_type == 'metal':
-                sl_percent = 0.006   # 0.6% for metals
+                sl_percent = 0.020   # 2.0% for metals
             elif instrument_type == 'crypto':
-                sl_percent = 0.008   # 0.8% for crypto
+                sl_percent = 0.030   # 3.0% for crypto (higher volatility)
             else:
-                sl_percent = 0.004   # 0.4% for major pairs
+                sl_percent = 0.015   # 1.5% for major pairs
             
-            # Calculate S/L distance
-            sl_distance = current_price * sl_percent
+            # Calculate S/L distance with spread margin
+            spread_margin = 0.003  # 0.3% for spread safety
+            sl_distance = current_price * (sl_percent + spread_margin)
             
             # Use symbol-specific minimum RR ratio for forced trades
             min_rr = symbol_config.get('min_rr_ratio', 1.5)
@@ -836,10 +840,10 @@ class TradingStrategy:
             # Calculate proper pip value based on symbol
             if 'JPY' in symbol:
                 pip_value = 0.01  # JPY pairs
-                min_tp_distance = (typical_spread * 3) * pip_value  # 3x spread minimum
+                min_tp_distance = max((typical_spread * 5) * pip_value, current_price * 0.002)  # 5x spread or 0.2% minimum
             else:
                 pip_value = 0.0001  # Standard pairs
-                min_tp_distance = (typical_spread * 3) * pip_value  # 3x spread minimum
+                min_tp_distance = max((typical_spread * 5) * pip_value, current_price * 0.002)  # 5x spread or 0.2% minimum
             tp_distance = max(tp_distance, min_tp_distance)
             
             if signal_type == SignalType.BUY:
@@ -1615,7 +1619,7 @@ class TradingStrategy:
             logger.error(f"Error in signal fusion: {e}")
             return {'action': 'wait', 'confidence': 0, 'buy_score': 0, 'sell_score': 0, 'weights_used': {}}
     
-    def _calculate_quantum_sl_tp(self, signal_type: SignalType, current_price: float,
+    def _calculate_quantum_sl_tp(self, symbol: str, signal_type: SignalType, current_price: float,
                                 df: pd.DataFrame, quantum_decision: QuantumDecision,
                                 consciousness_signal: ConsciousnessSignal,
                                 hyperdim_strategy: HyperdimensionalStrategy,
@@ -1655,23 +1659,25 @@ class TradingStrategy:
                 leverage = self.account_leverage
             
             # Calculate safe S/L based on leverage
-            # With 10% margin usage, we can afford larger S/L
+            # Wider stop-loss to allow for spread and floating losses
             if leverage >= 500:
-                base_sl_percent = 0.002  # 0.2% for ultra-high leverage
+                base_sl_percent = 0.01   # 1.0% for ultra-high leverage
             elif leverage >= 200:
-                base_sl_percent = 0.003  # 0.3% for high leverage
+                base_sl_percent = 0.015  # 1.5% for high leverage
             elif leverage >= 100:
-                base_sl_percent = 0.004  # 0.4% for medium leverage
+                base_sl_percent = 0.02   # 2.0% for medium leverage
             else:
-                base_sl_percent = 0.005  # 0.5% for low leverage
+                base_sl_percent = 0.025  # 2.5% for low leverage
             
-            sl_distance = max(min_sl_distance, current_price * base_sl_percent)
+            # Add extra margin for spread - assume worst case 30 pip spread
+            spread_margin = 0.003  # 0.3% for spread safety
+            sl_distance = max(min_sl_distance, current_price * (base_sl_percent + spread_margin))
             
             # Apply volatility factor but cap it
             sl_distance = sl_distance * min(consciousness_factor * vol_factor, 2.0)
             
-            # Ensure S/L never exceeds 1% to stay well clear of margin calls
-            sl_distance = min(sl_distance, current_price * 0.01)
+            # Ensure S/L never exceeds 3% to stay well clear of margin calls
+            sl_distance = min(sl_distance, current_price * 0.03)
             
             # Dynamic T/P based on symbol characteristics and risk-reward ratios
             symbol_base = symbol.rstrip('#')
@@ -1708,7 +1714,11 @@ class TradingStrategy:
             
             # Dynamic T/P cap based on average daily range
             avg_daily_range = symbol_config.get('avg_daily_range', 100)
-            max_tp_percent = min(avg_daily_range * 0.00001 * 0.5, 0.03)  # Max 50% of ADR or 3%
+            # Convert ADR pips to percentage properly
+            if 'JPY' in symbol:
+                max_tp_percent = min(avg_daily_range * 0.01 * 0.5 / current_price, 0.05)  # Max 50% of ADR or 5%
+            else:
+                max_tp_percent = min(avg_daily_range * 0.0001 * 0.5 / current_price, 0.05)  # Max 50% of ADR or 5%
             
             # Apply realistic cap
             tp_distance = min(tp_distance, current_price * max_tp_percent)
@@ -1718,10 +1728,10 @@ class TradingStrategy:
             # Calculate proper pip value based on symbol
             if 'JPY' in symbol:
                 pip_value = 0.01  # JPY pairs
-                min_tp_distance = (typical_spread * 3) * pip_value  # 3x spread minimum
+                min_tp_distance = max((typical_spread * 5) * pip_value, current_price * 0.002)  # 5x spread or 0.2% minimum
             else:
                 pip_value = 0.0001  # Standard pairs
-                min_tp_distance = (typical_spread * 3) * pip_value  # 3x spread minimum
+                min_tp_distance = max((typical_spread * 5) * pip_value, current_price * 0.002)  # 5x spread or 0.2% minimum
             tp_distance = max(tp_distance, min_tp_distance)
             
             # Calculate final SL/TP
@@ -1740,8 +1750,8 @@ class TradingStrategy:
             symbol_base = symbol.rstrip('#') if hasattr(symbol, 'rstrip') else 'EURUSD'
             symbol_config = get_symbol_config(symbol_base)
             
-            # Use conservative S/L
-            sl_distance = current_price * 0.003  # 0.3% S/L
+            # Use wider S/L for fallback
+            sl_distance = current_price * 0.015  # 1.5% S/L
             
             # Use minimum RR ratio for the symbol
             min_rr = symbol_config.get('min_rr_ratio', 1.5)

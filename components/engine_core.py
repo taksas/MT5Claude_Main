@@ -52,6 +52,11 @@ class UltraTradingEngine:
         self.trades_this_hour = 0
         self.force_trade_attempts = 0
         
+        # Proper daily P&L tracking
+        self.day_start_balance = None
+        self.daily_closed_pnl = 0
+        self.current_day = None
+        
         # Symbol management
         self.tradable_symbols = []
         
@@ -122,13 +127,40 @@ class UltraTradingEngine:
                 equity = account_info.get('equity', self.balance)
                 margin = account_info.get('margin', 0)
                 
+                # Track daily start balance
+                current_date = datetime.now(self.timezone).date()
+                if self.current_day != current_date:
+                    # New trading day - reset daily tracking
+                    self.current_day = current_date
+                    self.day_start_balance = self.balance
+                    self.daily_closed_pnl = 0
+                    logger.info(f"🌅 New trading day: {current_date}, Starting balance: {self.balance:.2f}")
+                
+                # Initialize day start balance if not set
+                if self.day_start_balance is None:
+                    self.day_start_balance = self.balance
+                
+                # Calculate proper daily P&L
+                positions = self.api_client.get_positions()
+                open_pnl = sum(pos.get('profit', 0) for pos in positions)
+                self.daily_pnl = self.daily_closed_pnl + open_pnl
+                
+                # Log daily P&L status periodically
+                if hasattr(self, '_last_pnl_log_time'):
+                    if time.time() - self._last_pnl_log_time > 60:  # Log every minute
+                        daily_pnl_pct = (self.daily_pnl / self.day_start_balance * 100) if self.day_start_balance > 0 else 0
+                        logger.info(f"📊 Daily P&L: {self.daily_pnl:.2f} ({daily_pnl_pct:+.2f}%) | Closed: {self.daily_closed_pnl:.2f} | Open: {open_pnl:.2f}")
+                        self._last_pnl_log_time = time.time()
+                else:
+                    self._last_pnl_log_time = time.time()
+                
                 # Update strategy with account leverage
                 leverage = account_info.get('leverage', 100)
                 self.strategy.set_account_leverage(leverage)
                 
-                # Check account safety
+                # Check account safety with proper daily P&L
                 safe, reason = self.risk_manager.check_account_safety(
-                    self.balance, equity, margin, self.daily_pnl
+                    self.day_start_balance, equity, margin, self.daily_pnl
                 )
                 if not safe:
                     logger.warning(f"⚠️ Account not safe: {reason}")
@@ -365,17 +397,41 @@ class UltraTradingEngine:
     def _manage_positions(self):
         """Manage open positions"""
         try:
-            results = self.order_manager.manage_positions(self.active_trades)
+            # First check for positions closed by SL/TP
+            current_positions = self.api_client.get_positions()
+            current_tickets = {pos.get('ticket') for pos in current_positions}
             
-            # Remove closed positions
-            for ticket in results['closed']:
-                if ticket in self.active_trades:
+            # Find positions that were closed (not in current positions anymore)
+            for ticket, trade in list(self.active_trades.items()):
+                if ticket not in current_tickets:
+                    # Position was closed by SL/TP
+                    # Try to get last known P&L from history
+                    logger.info(f"🎯 Position {ticket} closed by SL/TP")
+                    # For now, we'll update closed P&L in the next account update
                     del self.active_trades[ticket]
             
-            # Update daily P&L
-            positions = self.api_client.get_positions()
-            current_pnl = sum(pos.get('profit', 0) for pos in positions)
-            self.daily_pnl = current_pnl
+            # Then manage remaining positions
+            results = self.order_manager.manage_positions(self.active_trades)
+            
+            # Track manually closed position P&L
+            for ticket in results['closed']:
+                if ticket in self.active_trades:
+                    # Get position info before closing
+                    position_info = self.order_manager.get_position_info(ticket)
+                    if position_info:
+                        closed_profit = position_info.get('profit', 0)
+                        self.daily_closed_pnl += closed_profit
+                        logger.info(f"💰 Position {ticket} closed with P&L: {closed_profit:.2f}")
+                    del self.active_trades[ticket]
+            
+            # Update closed P&L from balance change
+            if self.day_start_balance is not None and self.balance is not None:
+                # Calculate actual daily P&L from balance change
+                balance_change = self.balance - self.day_start_balance
+                positions = self.api_client.get_positions()
+                open_pnl = sum(pos.get('profit', 0) for pos in positions)
+                # Closed P&L = balance change - open P&L
+                self.daily_closed_pnl = balance_change - open_pnl
             
         except Exception as e:
             logger.error(f"Error managing positions: {e}")

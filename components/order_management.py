@@ -169,13 +169,13 @@ class OrderManagement:
                 # If price drops significantly from high
                 high_since_entry = max(current_price, trade.entry_price * 1.01)
                 pullback = (high_since_entry - current_price) / high_since_entry
-                if pullback > 0.005:  # 0.5% pullback
+                if pullback > 0.02:  # 2% pullback (was 0.5%)
                     return True
             else:
                 # If price rises significantly from low
                 low_since_entry = min(current_price, trade.entry_price * 0.99)
                 pullback = (current_price - low_since_entry) / low_since_entry
-                if pullback > 0.005:  # 0.5% pullback
+                if pullback > 0.02:  # 2% pullback (was 0.5%)
                     return True
             
             return False
