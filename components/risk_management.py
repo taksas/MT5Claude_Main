@@ -79,6 +79,11 @@ class RiskManagement:
                 else:
                     position_size = min(position_size, 0.2)   # Max 0.2 lots for majors
                 
+                # Get free margin from account info if available
+                free_margin = balance  # Default to balance
+                if account_info and 'margin_free' in account_info:
+                    free_margin = account_info.get('margin_free', balance)
+                
                 # Ultra-conservative fallback for low balance/margin situations
                 if free_margin < 1000:  # Less than 1000 units of currency free
                     position_size = min_volume  # Use minimum possible
@@ -101,10 +106,7 @@ class RiskManagement:
                 
                 # Calculate maximum safe position value
                 # Available margin for new positions = Free Margin × max_margin_usage
-                # But if we don't have free margin info, use balance as fallback
-                free_margin = balance  # Default to balance
-                if account_info and 'margin_free' in account_info:
-                    free_margin = account_info.get('margin_free', balance)
+                # Free margin already calculated above
                 
                 # Maximum position value we can open = free_margin × leverage × usage_percent
                 max_position_value = free_margin * leverage * max_margin_usage
@@ -176,18 +178,28 @@ class RiskManagement:
             return False, "Safety check error"
     
     def can_trade_symbol(self, symbol: str, active_trades: Dict[str, Any], 
-                        last_trade_time: Dict[str, float]) -> Tuple[bool, str]:
+                        last_trade_time: Dict[str, float], 
+                        pending_orders: Dict[str, Any] = None,
+                        signal_type: str = None) -> Tuple[bool, str]:
         """Check if we can trade this symbol"""
         try:
             # Check maximum concurrent positions
             if len(active_trades) >= CONFIG["MAX_CONCURRENT"]:
                 return False, "Max concurrent positions reached"
             
+            # Check if symbol has pending order
+            if pending_orders and symbol in pending_orders:
+                return False, "Pending order already exists"
+            
             # Check if symbol already has position
             # active_trades is Dict[ticket, Trade], so check symbol in trade objects
             for ticket, trade in active_trades.items():
                 if trade.symbol == symbol:
-                    return False, "Position already open"
+                    # If we have a position, check if it's the opposite direction
+                    if signal_type and trade.type != signal_type:
+                        return False, f"Opposite position already open ({trade.type})"
+                    else:
+                        return False, "Position already open"
             
             # Check position interval
             if symbol in last_trade_time:
@@ -368,11 +380,22 @@ class RiskManagement:
                     return False, "Invalid SL for BUY"
                 if tp <= entry:
                     return False, "Invalid TP for BUY"
+                sl_distance = entry - sl
             else:
                 if sl <= entry:
                     return False, "Invalid SL for SELL"
                 if tp >= entry:
                     return False, "Invalid TP for SELL"
+                sl_distance = sl - entry
+            
+            # Check minimum and maximum stop loss distance
+            sl_distance_percent = sl_distance / entry
+            
+            if sl_distance_percent < CONFIG["MIN_SL_DISTANCE_PERCENT"]:
+                return False, f"SL too close: {sl_distance_percent*100:.3f}% < {CONFIG['MIN_SL_DISTANCE_PERCENT']*100:.1f}%"
+            
+            if sl_distance_percent > CONFIG["MAX_SL_DISTANCE_PERCENT"]:
+                return False, f"SL too far: {sl_distance_percent*100:.3f}% > {CONFIG['MAX_SL_DISTANCE_PERCENT']*100:.1f}%"
             
             # Check risk-reward ratio
             rr_ratio = self.calculate_risk_reward_ratio(entry, sl, tp, signal_type)

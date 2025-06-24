@@ -5,50 +5,52 @@ Contains all configuration constants and symbol configurations
 """
 
 # High-profit symbols configuration - Only tradable symbols as per UPDATE_INSTRUCTIONS.md
+# NOTE: Symbol order DOES NOT affect trading priority! The engine shuffles symbols randomly on each trading loop
+# All symbols have equal opportunity to be traded based on market conditions, not their position in this dict
 HIGH_PROFIT_SYMBOLS = {
-    # Major pairs with good liquidity
+    # Major USD pairs - Equal priority, balanced parameters
+    "USDJPY": {
+        "avg_daily_range": 100, "typical_spread": 1, "risk_factor": 0.01, 
+        "profit_potential": "high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.0, "max_rr_ratio": 3.0
+    },
+    "GBPUSD": {
+        "avg_daily_range": 100, "typical_spread": 1, "risk_factor": 0.01, 
+        "profit_potential": "high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.5, "max_rr_ratio": 4.0
+    },
     "EURUSD": {
         "avg_daily_range": 80, "typical_spread": 1, "risk_factor": 0.01, 
         "profit_potential": "high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.0, "max_rr_ratio": 3.0
     },
-    "GBPUSD": {
-        "avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, 
-        "profit_potential": "high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.5, "max_rr_ratio": 4.0
-    },
-    "USDJPY": {
-        "avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, 
-        "profit_potential": "high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.0, "max_rr_ratio": 3.0
-    },
     "USDCAD": {
-        "avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.01, 
+        "avg_daily_range": 80, "typical_spread": 1, "risk_factor": 0.01, 
         "profit_potential": "medium_high", "min_rr_ratio": 1.2, "target_rr_ratio": 1.8, "max_rr_ratio": 2.5
     },
     "USDCHF": {
-        "avg_daily_range": 70, "typical_spread": 2, "risk_factor": 0.01, 
+        "avg_daily_range": 70, "typical_spread": 1, "risk_factor": 0.01, 
         "profit_potential": "medium", "min_rr_ratio": 1.0, "target_rr_ratio": 1.5, "max_rr_ratio": 2.0
     },
     
-    # High volatility JPY pairs - higher RR potential
+    # JPY Cross pairs - Equal opportunity based on volatility, not order
     "GBPJPY": {
-        "avg_daily_range": 150, "typical_spread": 3, "risk_factor": 0.007, 
+        "avg_daily_range": 150, "typical_spread": 1, "risk_factor": 0.007, 
         "profit_potential": "very_high", "min_rr_ratio": 2.0, "target_rr_ratio": 3.0, "max_rr_ratio": 5.0
     },
     "EURJPY": {
-        "avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.009, 
+        "avg_daily_range": 100, "typical_spread": 1, "risk_factor": 0.009, 
         "strategy": "risk_sentiment", "min_rr_ratio": 1.5, "target_rr_ratio": 2.5, "max_rr_ratio": 4.0
     },
     "CADJPY": {
-        "avg_daily_range": 90, "typical_spread": 2, "risk_factor": 0.01, 
+        "avg_daily_range": 90, "typical_spread": 1, "risk_factor": 0.01, 
         "profit_potential": "medium_high", "min_rr_ratio": 1.5, "target_rr_ratio": 2.0, "max_rr_ratio": 3.0
     },
     "CHFJPY": {
-        "avg_daily_range": 80, "typical_spread": 2, "risk_factor": 0.01, 
+        "avg_daily_range": 80, "typical_spread": 1, "risk_factor": 0.01, 
         "profit_potential": "medium", "min_rr_ratio": 1.2, "target_rr_ratio": 1.8, "max_rr_ratio": 2.5
     },
     
-    # Cross Currency Pairs - adjusted for their characteristics
+    # Other Cross pairs - Each evaluated independently on market conditions
     "EURGBP": {
-        "avg_daily_range": 60, "typical_spread": 2, "risk_factor": 0.010, 
+        "avg_daily_range": 60, "typical_spread": 1, "risk_factor": 0.010, 
         "strategy": "range_trading", "min_rr_ratio": 1.0, "target_rr_ratio": 1.5, "max_rr_ratio": 2.0
     },
     "EURCAD": {
@@ -56,7 +58,7 @@ HIGH_PROFIT_SYMBOLS = {
         "profit_potential": "medium_high", "min_rr_ratio": 1.2, "target_rr_ratio": 2.0, "max_rr_ratio": 3.0
     },
     "EURCHF": {
-        "avg_daily_range": 50, "typical_spread": 2, "risk_factor": 0.010, 
+        "avg_daily_range": 50, "typical_spread": 1, "risk_factor": 0.010, 
         "profit_potential": "medium", "min_rr_ratio": 0.8, "target_rr_ratio": 1.2, "max_rr_ratio": 1.8
     },
     "GBPCAD": {
@@ -112,6 +114,8 @@ CONFIG = {
     "RISK_PER_METAL": 0.007,  # 0.7% risk for metals
     "RISK_PER_CRYPTO": 0.003,  # 0.3% risk for crypto due to extreme volatility
     "RISK_PER_INDEX": 0.008,  # 0.8% risk for indices (high profit potential)
+    "MIN_SL_DISTANCE_PERCENT": 0.002,  # Minimum 0.2% SL distance to prevent margin calls
+    "MAX_SL_DISTANCE_PERCENT": 0.02,   # Maximum 2% SL distance for risk control
 }
 
 def get_symbol_config(symbol):

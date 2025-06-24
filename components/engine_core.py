@@ -42,6 +42,8 @@ class UltraTradingEngine:
         
         # State management
         self.active_trades = {}
+        self.pending_orders = {}  # Track pending orders to prevent duplicates
+        self.symbol_positions = {}  # Track position type per symbol (BUY/SELL)
         self.daily_pnl = 0
         self.daily_trades = 0
         self.last_trade_time = {}
@@ -288,19 +290,7 @@ class UltraTradingEngine:
     def _analyze_symbol(self, symbol: str) -> Optional[Signal]:
         """Analyze a symbol for trading opportunities"""
         try:
-            # Check if we can trade this symbol
-            can_trade, reason = self.risk_manager.can_trade_symbol(
-                symbol, self.active_trades, self.last_trade_time
-            )
-            if not can_trade:
-                return None
-            
-            # Check spread
-            spread_ok, spread = self.market_data.check_spread(symbol)
-            if not spread_ok and not self.config["IGNORE_SPREAD"]:
-                return None
-            
-            # Get market data
+            # Get market data first to determine signal type
             df = self.market_data.get_market_data(symbol)
             if df is None or len(df) < 50:
                 return None
@@ -309,8 +299,23 @@ class UltraTradingEngine:
             if not current_price:
                 return None
             
-            # Generate signal
+            # Generate signal to know the direction
             signal = self.strategy.analyze_ultra(symbol, df, current_price)
+            if not signal:
+                return None
+            
+            # Now check if we can trade this symbol with the signal type
+            can_trade, reason = self.risk_manager.can_trade_symbol(
+                symbol, self.active_trades, self.last_trade_time,
+                self.pending_orders, signal.type.value
+            )
+            if not can_trade:
+                return None
+            
+            # Check spread
+            spread_ok, spread = self.market_data.check_spread(symbol)
+            if not spread_ok and not self.config["IGNORE_SPREAD"]:
+                return None
             
             # Cache signal for visualization
             if signal:
@@ -328,10 +333,22 @@ class UltraTradingEngine:
     def _execute_signal(self, symbol: str, signal: Signal):
         """Execute trading signal"""
         try:
+            # Double-check we don't have a pending order
+            if symbol in self.pending_orders:
+                logger.warning(f"Pending order already exists for {symbol}, skipping")
+                return
+            
+            # Mark as pending immediately to prevent duplicates
+            self.pending_orders[symbol] = {
+                'signal': signal,
+                'timestamp': time.time()
+            }
+            
             # Get symbol info
             symbol_info = self.api_client.get_symbol_info(symbol)
             if not symbol_info:
                 logger.error(f"Cannot get symbol info for {symbol}")
+                del self.pending_orders[symbol]  # Remove pending status
                 return
             
             # Calculate position size
@@ -375,10 +392,19 @@ class UltraTradingEngine:
                 )
                 
                 self.active_trades[ticket] = trade
+                self.symbol_positions[symbol] = signal.type.value  # Track position type
                 self.last_trade_time[symbol] = time.time()
                 self.last_global_trade_time = time.time()
                 self.daily_trades += 1
                 self.trades_this_hour += 1
+                
+                # Remove from pending orders
+                if symbol in self.pending_orders:
+                    del self.pending_orders[symbol]
+            else:
+                # Order failed, remove from pending
+                if symbol in self.pending_orders:
+                    del self.pending_orders[symbol]
                 
                 # Send to visualizer
                 if self.signal_queue:
@@ -393,6 +419,9 @@ class UltraTradingEngine:
                 
         except Exception as e:
             logger.error(f"Error executing signal for {symbol}: {e}")
+            # Always clean up pending orders on error
+            if symbol in self.pending_orders:
+                del self.pending_orders[symbol]
     
     def _manage_positions(self):
         """Manage open positions"""
@@ -407,6 +436,9 @@ class UltraTradingEngine:
                     # Position was closed by SL/TP
                     # Try to get last known P&L from history
                     logger.info(f"🎯 Position {ticket} closed by SL/TP")
+                    # Clean up position tracking
+                    if trade.symbol in self.symbol_positions:
+                        del self.symbol_positions[trade.symbol]
                     # For now, we'll update closed P&L in the next account update
                     del self.active_trades[ticket]
             
@@ -416,12 +448,16 @@ class UltraTradingEngine:
             # Track manually closed position P&L
             for ticket in results['closed']:
                 if ticket in self.active_trades:
+                    trade = self.active_trades[ticket]
                     # Get position info before closing
                     position_info = self.order_manager.get_position_info(ticket)
                     if position_info:
                         closed_profit = position_info.get('profit', 0)
                         self.daily_closed_pnl += closed_profit
                         logger.info(f"💰 Position {ticket} closed with P&L: {closed_profit:.2f}")
+                    # Clean up position tracking
+                    if trade.symbol in self.symbol_positions:
+                        del self.symbol_positions[trade.symbol]
                     del self.active_trades[ticket]
             
             # Update closed P&L from balance change
