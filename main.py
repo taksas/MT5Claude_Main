@@ -42,11 +42,6 @@ class UltraTradingSystem:
         print(f"Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("\nHigh-Profit Symbols Active:")
         
-        print("🔥 HIGH-PROFIT SYMBOLS ACTIVE:")
-        print("- Exotic Currencies: USDTRY, USDZAR, USDMXN")
-        print("- Cross Pairs: GBPJPY, GBPNZD, EURAUD")
-        print("- Metals: XAUUSD, XPDUSD, XPTUSD")
-        print("- Indices: US30, RUSSELL2K, MDAX")
         print("\nPress Ctrl+C to shutdown\n")
         print("=" * 70)
         
@@ -83,34 +78,6 @@ class UltraTradingSystem:
                 self.visualizer = TradingVisualizer()
                 self.visualizer.start()
                 
-            elif self.mode == 'both':
-                # Run both in separate processes
-                from multiprocessing import Process, Queue
-                
-                signal_queue = Queue()
-                
-                # Engine process
-                def run_engine(queue):
-                    from components.engine_core import UltraTradingEngine
-                    engine = UltraTradingEngine(signal_queue=queue)
-                    engine.start()
-                
-                # Visualizer process
-                def run_visualizer(queue):
-                    from components.visualizer import TradingVisualizer
-                    viz = TradingVisualizer(signal_queue=queue)
-                    viz.start()
-                
-                engine_proc = Process(target=run_engine, args=(signal_queue,))
-                viz_proc = Process(target=run_visualizer, args=(signal_queue,))
-                
-                engine_proc.start()
-                time.sleep(2)  # Let engine initialize
-                viz_proc.start()
-                
-                # Wait for processes
-                engine_proc.join()
-                viz_proc.join()
                 
         except Exception as e:
             logger.error(f"Fatal error: {e}")
@@ -124,16 +91,10 @@ class UltraTradingSystem:
         logger.info("Stopping Ultra Trading System...")
         
         if self.engine:
-            try:
-                self.engine.stop()
-            except:
-                pass
+            self.engine.stop()
                 
         if self.visualizer:
-            try:
-                self.visualizer.stop()
-            except:
-                pass
+            self.visualizer.stop()
                 
         logger.info("System stopped")
 
@@ -144,17 +105,10 @@ def main():
                        default='engine', help='Run mode')
     parser.add_argument('--visualize', '-v', action='store_true',
                        help='Enable visualizer with engine')
-    parser.add_argument('--aggressive', '-a', action='store_true',
-                       help='Enable aggressive trading mode')
     
     args = parser.parse_args()
     
-    # Quick launch shortcuts
-    if len(sys.argv) == 1:
-        # No arguments - run engine only
-        system = UltraTradingSystem(mode='engine', visualize=False)
-    else:
-        system = UltraTradingSystem(mode=args.mode, visualize=args.visualize)
+    system = UltraTradingSystem(mode=args.mode, visualize=args.visualize)
     
     try:
         system.start()

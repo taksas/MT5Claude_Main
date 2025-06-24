@@ -6,7 +6,7 @@ Handles position sizing, risk calculations, and account safety checks
 
 import logging
 import time
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime
 
 from .symbol_utils import SymbolUtils
@@ -53,7 +53,7 @@ class RiskManagement:
                 # Convert SL distance to pips
                 digits = symbol_info.get('digits', 5)
                 
-                if self.symbol_utils.is_jpy_pair(symbol) and not self.symbol_utils.is_metal_pair(symbol):
+                if 'JPY' in symbol.upper():
                     sl_pips = sl_distance * 100  # JPY pairs
                 elif digits == 5 or digits == 3:
                     sl_pips = sl_distance * 10000  # 5-digit broker
@@ -121,6 +121,44 @@ class RiskManagement:
                     
                     logger.warning(f"Position size reduced for margin safety: {original_size} → {position_size} lots")
                 
+                # CRITICAL: Final absolute monetary risk validation
+                # Calculate actual monetary risk in account currency
+                sl_pips_final = sl_pips  # Already calculated above
+                actual_pip_value = pip_value * position_size  # Pip value for this position size
+                total_monetary_risk = sl_pips_final * actual_pip_value
+                
+                # First check: if even minimum volume is too risky, reject the trade
+                min_risk = sl_pips_final * pip_value * min_volume
+                max_acceptable_risk = balance * 0.05  # Never risk more than 5% of account per trade
+                
+                if min_risk > max_acceptable_risk:
+                    logger.critical(f"TRADE REJECTED - MINIMUM RISK TOO HIGH for {symbol}:")
+                    logger.critical(f"  Minimum position: {min_volume} lots")
+                    logger.critical(f"  Minimum risk: {min_risk:.2f} {self.account_currency}")
+                    logger.critical(f"  Maximum acceptable risk: {max_acceptable_risk:.2f} {self.account_currency}")
+                    logger.critical(f"  Stop-loss distance too wide: {sl_pips_final:.1f} pips")
+                    logger.critical(f"  Consider tighter stop-loss or skip this trade")
+                    return 0.0  # Return 0 to prevent trade
+                
+                # Safety check: ensure risk doesn't exceed account balance
+                if total_monetary_risk > max_acceptable_risk:
+                    # Scale down position size to keep risk acceptable
+                    original_position_size = position_size
+                    safe_position_size = (max_acceptable_risk / total_monetary_risk) * position_size
+                    position_size = round(safe_position_size / volume_step) * volume_step
+                    position_size = max(min_volume, position_size)
+                    
+                    # Recalculate actual risk with new position size
+                    actual_pip_value = pip_value * position_size
+                    total_monetary_risk = sl_pips_final * actual_pip_value
+                    
+                    logger.critical(f"RISK PROTECTION ACTIVATED for {symbol}:")
+                    logger.critical(f"  Original position: {original_position_size} lots")
+                    logger.critical(f"  Original risk: {sl_pips_final * pip_value * original_position_size:.2f} {self.account_currency}")
+                    logger.critical(f"  Reduced to: {position_size} lots")
+                    logger.critical(f"  Final risk: {total_monetary_risk:.2f} {self.account_currency}")
+                    logger.critical(f"  Risk vs balance: {(total_monetary_risk/balance)*100:.1f}%")
+                
                 # Log final calculation details
                 margin_required = actual_position_value / leverage
                 logger.info(f"Position sizing for {symbol}:")
@@ -130,10 +168,14 @@ class RiskManagement:
                 logger.info(f"  Risk %: {risk_percentage*100:.1f}%")
                 logger.info(f"  Risk amount: {risk_amount:.2f}")
                 logger.info(f"  S/L distance: {sl_distance:.5f} ({(sl_distance/current_price)*100:.2f}%)")
+                logger.info(f"  S/L pips: {sl_pips_final:.1f}")
+                logger.info(f"  Pip value: {pip_value:.2f} per lot")
                 logger.info(f"  Position size: {position_size} lots")
                 logger.info(f"  Position value: {actual_position_value:.2f}")
                 logger.info(f"  Margin required: {margin_required:.2f}")
                 logger.info(f"  Max margin usage: {max_margin_usage*100:.0f}%")
+                logger.info(f"  TOTAL MONETARY RISK: {total_monetary_risk:.2f} {self.account_currency}")
+                logger.info(f"  Risk vs balance: {(total_monetary_risk/balance)*100:.1f}%")
                 
                 return position_size
             else:
@@ -310,7 +352,7 @@ class RiskManagement:
             digits = symbol_info.get('digits', 5)
             
             # Determine pip size
-            if self.symbol_utils.is_jpy_pair(symbol) and not self.symbol_utils.is_metal_pair(symbol):
+            if 'JPY' in symbol.upper():
                 pip_size = 0.01
             elif digits == 5 or digits == 3:
                 pip_size = 0.0001
@@ -327,15 +369,32 @@ class RiskManagement:
                 # Inverse calculation
                 pip_value = (pip_size * contract_size) / current_price
             else:
-                # Cross calculation - use more realistic pip values
-                # For 0.01 lot (1000 units), not full lot
+                # Cross calculation - calculate proper pip values for JPY account
                 if self.account_currency == 'JPY':
-                    if 'JPY' in symbol:
-                        pip_value = 10  # ¥10 per pip for XXX/JPY pairs (0.01 lot)
+                    # For cross-currency pairs with JPY account, we need to convert through USD or estimate
+                    if 'USD' in symbol:
+                        # For pairs like GBPUSD, EURUSD with JPY account
+                        # Pip value = pip_size * contract_size * USD/JPY rate
+                        # Using approximate USD/JPY rate of 150 (conservative estimate)
+                        usd_jpy_rate = 150.0
+                        pip_value = pip_size * contract_size * usd_jpy_rate
+                    elif 'GBP' in symbol and symbol.startswith('GBP'):
+                        # For GBP pairs with JPY account (e.g., GBPCHF, GBPCAD)
+                        # Using approximate GBP/JPY rate of 180
+                        gbp_jpy_rate = 180.0
+                        pip_value = pip_size * contract_size * gbp_jpy_rate
+                    elif 'EUR' in symbol and symbol.startswith('EUR'):
+                        # For EUR pairs with JPY account (e.g., EURCHF, EURCAD)
+                        # Using approximate EUR/JPY rate of 160
+                        eur_jpy_rate = 160.0
+                        pip_value = pip_size * contract_size * eur_jpy_rate
                     else:
-                        pip_value = 1  # ¥1 per pip for other pairs (0.01 lot)
+                        # Conservative fallback for other pairs
+                        # Use 100 JPY per pip per full lot as safe estimate
+                        pip_value = pip_size * contract_size * 100
                 else:
-                    pip_value = 0.1  # $0.10 per pip for 0.01 lot
+                    # For non-JPY account currencies, use standard USD calculations
+                    pip_value = pip_size * contract_size  # Standard calculation
             
             # Scale pip value based on actual lot size (pip value is per 0.01 lot)
             # No need to adjust here as we'll calculate based on position size
@@ -366,6 +425,103 @@ class RiskManagement:
             logger.error(f"Error calculating RR ratio: {e}")
             return 0
     
+    def validate_absolute_risk(self, symbol: str, position_size: float, sl_distance: float,
+                             current_price: float, balance: float, symbol_info: Dict[str, Any]) -> Tuple[bool, str]:
+        """Validate that the absolute monetary risk is acceptable for the account"""
+        try:
+            # Calculate pip value
+            contract_size = symbol_info.get('trade_contract_size', 100000)
+            pip_value = self._calculate_pip_value(symbol, current_price, contract_size, symbol_info)
+            
+            # Calculate pip distance
+            digits = symbol_info.get('digits', 5)
+            if 'JPY' in symbol.upper():
+                sl_pips = sl_distance * 100
+            elif digits == 5 or digits == 3:
+                sl_pips = sl_distance * 10000
+            elif digits == 4 or digits == 2:
+                sl_pips = sl_distance * 100
+            else:
+                sl_pips = sl_distance * 10000
+            
+            # Calculate total monetary risk
+            actual_pip_value = pip_value * position_size
+            total_monetary_risk = sl_pips * actual_pip_value
+            
+            # Check absolute risk limits
+            max_risk_per_trade = balance * 0.05  # Never risk more than 5% per trade
+            max_catastrophic_risk = balance * 0.20  # Never risk more than 20% (catastrophic protection)
+            
+            if total_monetary_risk > max_catastrophic_risk:
+                return False, f"CATASTROPHIC RISK: {total_monetary_risk:.2f} > {max_catastrophic_risk:.2f} (20% of balance)"
+            
+            if total_monetary_risk > max_risk_per_trade:
+                return False, f"Excessive risk: {total_monetary_risk:.2f} > {max_risk_per_trade:.2f} (5% limit)"
+            
+            # Check if risk is reasonable compared to balance
+            risk_percentage = (total_monetary_risk / balance) * 100
+            if risk_percentage > 3.0:  # More than 3% is concerning
+                logger.warning(f"High risk warning: {risk_percentage:.1f}% of account balance at risk")
+            
+            return True, f"Risk acceptable: {total_monetary_risk:.2f} ({risk_percentage:.1f}% of balance)"
+            
+        except Exception as e:
+            logger.error(f"Error validating absolute risk: {e}")
+            return False, "Risk validation error"
+    
+    def get_available_symbols_for_trading(self, active_trades: Dict[str, Any], 
+                                        all_symbols: List[str]) -> List[str]:
+        """Get list of symbols available for new positions (diversification-focused)"""
+        try:
+            # Get symbols that currently have positions
+            occupied_symbols = set()
+            for ticket, trade in active_trades.items():
+                occupied_symbols.add(trade.symbol)
+            
+            # Return symbols that don't have positions
+            available_symbols = [symbol for symbol in all_symbols if symbol not in occupied_symbols]
+            
+            logger.info(f"Position diversification: {len(occupied_symbols)} symbols occupied, {len(available_symbols)} available")
+            return available_symbols
+            
+        except Exception as e:
+            logger.error(f"Error getting available symbols: {e}")
+            return all_symbols
+    
+    def should_seek_new_positions(self, account_info: Dict[str, Any], active_trades: Dict[str, Any],
+                                 max_positions: int = None) -> Tuple[bool, str]:
+        """Check if we should proactively seek new positions based on margin levels"""
+        try:
+            if max_positions is None:
+                max_positions = CONFIG["MAX_CONCURRENT"]
+            
+            current_positions = len(active_trades)
+            
+            # Don't seek more positions if at maximum
+            if current_positions >= max_positions:
+                return False, f"At maximum positions ({current_positions}/{max_positions})"
+            
+            # Check margin availability for new positions
+            margin_free = account_info.get('margin_free', 0)
+            margin_level = account_info.get('margin_level', 0)
+            balance = account_info.get('balance', 0)
+            
+            # Don't seek positions if margin is low
+            if margin_level > 0 and margin_level < 300:  # Below 300% margin level
+                return False, f"Margin level too low for new positions: {margin_level:.0f}%"
+            
+            # Don't seek positions if free margin is very low
+            if margin_free < balance * 0.2:  # Less than 20% of balance as free margin
+                return False, f"Insufficient free margin: {margin_free:.2f} ({(margin_free/balance)*100:.1f}% of balance)"
+            
+            # Proactively seek positions if we have capacity and good margin
+            available_slots = max_positions - current_positions
+            return True, f"Should seek {available_slots} more positions (margin level: {margin_level:.0f}%)"
+            
+        except Exception as e:
+            logger.error(f"Error checking if should seek new positions: {e}")
+            return False, "Error in position seeking check"
+
     def validate_trade_parameters(self, symbol: str, signal_type: str, 
                                 entry: float, sl: float, tp: float) -> Tuple[bool, str]:
         """Validate trade parameters"""

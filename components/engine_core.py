@@ -82,9 +82,11 @@ class UltraTradingEngine:
             logger.error("No tradable symbols found")
             return False
         
-        logger.info(f"🚀 Starting Ultra Trading Engine")
+        logger.info(f"🚀 Starting Ultra Trading Engine with Enhanced Diversification")
         logger.info(f"💰 Balance: ¥{self.balance:,.0f}")
-        logger.info(f"📊 Monitoring {len(self.tradable_symbols)} symbols")
+        logger.info(f"📊 Monitoring {len(self.tradable_symbols)} symbols for maximum diversification")
+        logger.info(f"🎯 Diversification Policy: One position per symbol maximum")
+        logger.info(f"🔄 Proactive Position Seeking: {'ENABLED' if CONFIG.get('PROACTIVE_POSITION_SEEKING', True) else 'DISABLED'}")
         
         self.running = True
         
@@ -179,11 +181,25 @@ class UltraTradingEngine:
             if self._should_force_trade():
                 self._force_trade()
             
-            # Analyze symbols for opportunities with rotation
-            # Rotate symbols to avoid always analyzing same ones first
-            import random
-            symbols_to_analyze = self.tradable_symbols[:self.config["MAX_SYMBOLS"]]
-            random.shuffle(symbols_to_analyze)  # Randomize order for fairness
+            # Proactive position seeking: prioritize symbols without positions
+            available_symbols = self.risk_manager.get_available_symbols_for_trading(
+                self.active_trades, self.tradable_symbols
+            )
+            
+            # Check if we should seek new positions
+            should_seek, seek_reason = self.risk_manager.should_seek_new_positions(
+                self.account_info, self.active_trades
+            )
+            
+            if should_seek and available_symbols:
+                logger.info(f"🔍 {seek_reason} - Prioritizing {len(available_symbols)} available symbols")
+                # Prioritize symbols without positions for better diversification
+                symbols_to_analyze = available_symbols[:10]  # Analyze top 10 available symbols
+            else:
+                # Standard analysis of all symbols with rotation
+                symbols_to_analyze = self.tradable_symbols[:self.config["MAX_SYMBOLS"]]
+                import random
+                random.shuffle(symbols_to_analyze)  # Randomize order for fairness
             
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = []
@@ -203,7 +219,7 @@ class UltraTradingEngine:
             logger.error(f"Error in trading loop: {e}")
     
     def _discover_symbols(self) -> List[str]:
-        """Discover and filter tradable symbols"""
+        """Discover and filter tradable symbols with diversification priority"""
         try:
             all_symbols = self.api_client.discover_symbols()
             
@@ -229,19 +245,30 @@ class UltraTradingEngine:
                 elif symbol in priority_symbols or symbol_base in HIGH_PROFIT_SYMBOLS:
                     filtered_symbols.append(symbol)
             
-            # Combine priority and filtered symbols
+            # Combine priority and filtered symbols with diversification focus
             final_symbols = []
-            # First add priority symbols that exist in all_symbols
+            # First add priority symbols that exist in all_symbols (sorted by priority)
+            priority_list = []
             for symbol in priority_symbols:
                 if symbol in all_symbols:
-                    final_symbols.append(symbol)
+                    symbol_base = symbol.rstrip('#')
+                    if symbol_base in HIGH_PROFIT_SYMBOLS:
+                        priority = HIGH_PROFIT_SYMBOLS[symbol_base].get('priority', 2)
+                        priority_list.append((priority, symbol))
+            
+            # Sort by priority (lower number = higher priority)
+            priority_list.sort(key=lambda x: x[0])
+            final_symbols = [symbol for _, symbol in priority_list]
+            
             # Then add other filtered symbols
             for symbol in filtered_symbols:
                 if symbol not in final_symbols:
                     final_symbols.append(symbol)
             
             # Limit to max symbols
-            return final_symbols[:self.config["MAX_SYMBOLS"]]
+            result = final_symbols[:self.config["MAX_SYMBOLS"]]
+            logger.info(f"📊 Symbol discovery: {len(result)} symbols selected for diversified monitoring")
+            return result
             
         except Exception as e:
             logger.error(f"Error discovering symbols: {e}")
@@ -261,15 +288,25 @@ class UltraTradingEngine:
         return time_since_last > self.config["FORCE_TRADE_INTERVAL"]
     
     def _force_trade(self):
-        """Force a trade on the best opportunity"""
-        logger.info("🔥 Forcing trade due to inactivity")
+        """Force a trade on the best opportunity with diversification priority"""
+        logger.info("🔥 Forcing trade due to inactivity (prioritizing diversification)")
         self.force_trade_attempts += 1
+        
+        # Get symbols that don't have positions (diversification first)
+        available_symbols = self.risk_manager.get_available_symbols_for_trading(
+            self.active_trades, self.tradable_symbols
+        )
+        
+        # If no available symbols, check all (fallback)
+        symbols_to_check = available_symbols[:10] if available_symbols else self.tradable_symbols[:10]
         
         best_symbol = None
         best_signal = None
         best_score = 0
         
-        for symbol in self.tradable_symbols[:10]:  # Check top 10 symbols
+        logger.info(f"🔍 Force trade analyzing {len(symbols_to_check)} symbols (available: {len(available_symbols)})")
+        
+        for symbol in symbols_to_check:
             df = self.market_data.get_market_data(symbol)
             if df is None or len(df) < 50:
                 continue
@@ -285,7 +322,10 @@ class UltraTradingEngine:
                 best_score = signal.confidence
         
         if best_symbol and best_signal:
+            logger.info(f"🎯 Force trade selected: {best_symbol} (diversification-friendly choice)")
             self._execute_signal(best_symbol, best_signal)
+        else:
+            logger.warning("🚫 No suitable symbols found for forced trade (diversification constraints)")
     
     def _analyze_symbol(self, symbol: str) -> Optional[Signal]:
         """Analyze a symbol for trading opportunities"""
@@ -304,12 +344,17 @@ class UltraTradingEngine:
             if not signal:
                 return None
             
-            # Now check if we can trade this symbol with the signal type
+            # Now check if we can trade this symbol with the signal type (strict diversification)
             can_trade, reason = self.risk_manager.can_trade_symbol(
                 symbol, self.active_trades, self.last_trade_time,
                 self.pending_orders, signal.type.value
             )
             if not can_trade:
+                # Log diversification-related rejections at debug level to avoid spam
+                if "already exists" in reason.lower() or "position already open" in reason.lower():
+                    logger.debug(f"Diversification policy: {symbol} - {reason}")
+                else:
+                    logger.info(f"Cannot trade {symbol}: {reason}")
                 return None
             
             # Check spread
@@ -398,6 +443,10 @@ class UltraTradingEngine:
                 self.daily_trades += 1
                 self.trades_this_hour += 1
                 
+                # Log diversification status
+                occupied_symbols = len(set(t.symbol for t in self.active_trades.values()))
+                logger.info(f"🎯 Diversification Update: {occupied_symbols}/{len(self.tradable_symbols)} symbols now have positions")
+                
                 # Remove from pending orders
                 if symbol in self.pending_orders:
                     del self.pending_orders[symbol]
@@ -435,10 +484,12 @@ class UltraTradingEngine:
                 if ticket not in current_tickets:
                     # Position was closed by SL/TP
                     # Try to get last known P&L from history
-                    logger.info(f"🎯 Position {ticket} closed by SL/TP")
+                    logger.info(f"🎯 Position {ticket} ({trade.symbol}) closed by SL/TP")
                     # Clean up position tracking
                     if trade.symbol in self.symbol_positions:
                         del self.symbol_positions[trade.symbol]
+                    # Log diversification update
+                    logger.info(f"📈 Diversification: {trade.symbol} now available for new positions")
                     # For now, we'll update closed P&L in the next account update
                     del self.active_trades[ticket]
             
@@ -458,6 +509,7 @@ class UltraTradingEngine:
                     # Clean up position tracking
                     if trade.symbol in self.symbol_positions:
                         del self.symbol_positions[trade.symbol]
+                    logger.info(f"📈 Diversification: {trade.symbol} now available for new positions")
                     del self.active_trades[ticket]
             
             # Update closed P&L from balance change
