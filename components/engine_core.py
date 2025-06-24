@@ -12,14 +12,10 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from concurrent.futures import ThreadPoolExecutor
 
-from .trading_config import CONFIG, HIGH_PROFIT_SYMBOLS
-from .trading_models import Trade, Signal
-from .mt5_api_client import MT5APIClient
-from .market_data import MarketData
-from .symbol_utils import SymbolUtils
+from .trading_components import CONFIG, HIGH_PROFIT_SYMBOLS, Trade, Signal, MT5APIClient, MarketData, SymbolUtils
 from .trading_strategy import TradingStrategy
 from .risk_management import RiskManagement
-from .order_management import OrderManagement
+from .trading_components import OrderManagement
 
 logger = logging.getLogger('UltraTradingEngine')
 
@@ -33,6 +29,9 @@ class UltraTradingEngine:
         self.risk_manager = RiskManagement()
         self.order_manager = OrderManagement(self.api_client)
         
+        # Pass api_client to risk_manager if needed for dynamic data
+        self.risk_manager.api_client = self.api_client
+
         # Configuration
         self.config = CONFIG
         self.timezone = pytz.timezone(CONFIG["TIMEZONE"])
@@ -42,32 +41,29 @@ class UltraTradingEngine:
         
         # State management
         self.active_trades = {}
-        self.pending_orders = {}  # Track pending orders to prevent duplicates
-        self.symbol_positions = {}  # Track position type per symbol (BUY/SELL)
+        self.pending_orders = {}
+        self.symbol_positions = {}
         self.daily_pnl = 0
         self.daily_trades = 0
         self.last_trade_time = {}
         self.last_global_trade_time = 0
         self.balance = None
-        self.account_info = None  # Store account info including leverage
+        self.account_info = None
         self.running = False
         self.trades_this_hour = 0
         self.force_trade_attempts = 0
         
-        # Proper daily P&L tracking
         self.day_start_balance = None
         self.daily_closed_pnl = 0
         self.current_day = None
         
-        # Symbol management
         self.tradable_symbols = []
         
-        # Performance tracking
         self.last_signals = {}
         
-        # Daily P&L sharing tracking
         self.last_pnl_share_time = 0
         self.last_shared_pnl = None
+        self.account_safety_warning_logged = False
         
     def start(self):
         """Initialize and start trading"""
@@ -80,7 +76,9 @@ class UltraTradingEngine:
             logger.error("Cannot get account balance")
             return False
         
-        # Discover tradable symbols
+        self.pending_orders.clear()
+        logger.info("Cleared pending orders from previous session")
+        
         self.tradable_symbols = self._discover_symbols()
         if not self.tradable_symbols:
             logger.error("No tradable symbols found")
@@ -90,13 +88,9 @@ class UltraTradingEngine:
         logger.info(f"💰 Balance: ¥{self.balance:,.0f}")
         logger.info(f"📊 Monitoring {len(self.tradable_symbols)} symbols for maximum diversification")
         logger.info(f"🎯 Diversification Policy: One position per symbol maximum")
-        logger.info(f"🔄 Proactive Position Seeking: {'ENABLED' if CONFIG.get('PROACTIVE_POSITION_SEEKING', True) else 'DISABLED'}")
         
         self.running = True
-        
-        # Start the main trading loop
         self.run()
-        
         return True
     
     def run(self):
@@ -106,13 +100,13 @@ class UltraTradingEngine:
         while self.running:
             try:
                 self.run_once()
-                time.sleep(CONFIG.get("LOOP_DELAY", 1))  # Default 1 second delay
+                time.sleep(CONFIG.get("LOOP_DELAY", 1))
             except KeyboardInterrupt:
                 logger.info("Keyboard interrupt received")
                 break
             except Exception as e:
-                logger.error(f"Error in main loop: {e}")
-                time.sleep(5)  # Wait before retrying
+                logger.error(f"Error in main loop: {e}", exc_info=True)
+                time.sleep(5)
         
         logger.info("📉 Main trading loop stopped")
     
@@ -123,455 +117,305 @@ class UltraTradingEngine:
     
     def run_once(self):
         """Run one iteration of the trading loop"""
-        if not self.running:
-            return
+        if not self.running: return
         
         try:
-            # Update account info
+            self._cleanup_pending_orders()
             account_info = self.api_client.get_account_info()
             if account_info:
-                self.account_info = account_info  # Store full account info
+                self.account_info = account_info
                 self.balance = account_info.get('balance', self.balance)
                 equity = account_info.get('equity', self.balance)
                 margin = account_info.get('margin', 0)
                 
-                # Track daily start balance
                 current_date = datetime.now(self.timezone).date()
                 if self.current_day != current_date:
-                    # New trading day - reset daily tracking
                     self.current_day = current_date
                     self.day_start_balance = self.balance
                     self.daily_closed_pnl = 0
                     logger.info(f"🌅 New trading day: {current_date}, Starting balance: {self.balance:.2f}")
                 
-                # Initialize day start balance if not set
-                if self.day_start_balance is None:
-                    self.day_start_balance = self.balance
+                if self.day_start_balance is None: self.day_start_balance = self.balance
                 
-                # Calculate proper daily P&L
                 positions = self.api_client.get_positions()
                 open_pnl = sum(pos.get('profit', 0) for pos in positions)
                 self.daily_pnl = self.daily_closed_pnl + open_pnl
                 
-                # Log daily P&L status periodically
-                if hasattr(self, '_last_pnl_log_time'):
-                    if time.time() - self._last_pnl_log_time > 60:  # Log every minute
-                        daily_pnl_pct = (self.daily_pnl / self.day_start_balance * 100) if self.day_start_balance > 0 else 0
-                        logger.info(f"📊 Daily P&L: {self.daily_pnl:.2f} ({daily_pnl_pct:+.2f}%) | Closed: {self.daily_closed_pnl:.2f} | Open: {open_pnl:.2f}")
-                        self._last_pnl_log_time = time.time()
-                else:
-                    self._last_pnl_log_time = time.time()
-                
-                # Share daily P&L data with visualizer
-                self._share_daily_pnl_data()
-                
-                # Update strategy with account leverage
-                leverage = account_info.get('leverage', 100)
-                self.strategy.set_account_leverage(leverage)
-                
-                # Check account safety
-                safe, reason = self.risk_manager.check_account_safety(
-                    self.day_start_balance, equity, margin
-                )
+                safe, reason = self.risk_manager.check_account_safety(self.day_start_balance, equity, margin)
                 if not safe:
-                    logger.warning(f"⚠️ Account not safe: {reason}")
-                    return
+                    # まだ警告ログを出力していない場合のみ、ログを出力してフラグを立てる
+                    if not self.account_safety_warning_logged:
+                        logger.warning(f"⚠️ Account not safe: {reason}. Trading will be paused.")
+                        self.account_safety_warning_logged = True
+                    return # 取引は行わずにループを抜ける
+                else:
+                    # アカウントが安全な状態に復帰した場合
+                    if self.account_safety_warning_logged:
+                        logger.info("✅ Account safety restored. Resuming normal operations.")
+                        self.account_safety_warning_logged = False # フラグをリセット
             
-            # Manage existing positions
             self._manage_positions()
             
-            # Check trading hours
-            if not self._is_trading_hours():
-                return
+            if not self._is_trading_hours(): return
             
-            # Check for forced trade
-            if self._should_force_trade():
-                self._force_trade()
+            if self._should_force_trade(): self._force_trade()
             
-            # Proactive position seeking: prioritize symbols without positions
-            available_symbols = self.risk_manager.get_available_symbols_for_trading(
-                self.active_trades, self.tradable_symbols
-            )
+            available_symbols = self.risk_manager.get_available_symbols_for_trading(self.active_trades, self.tradable_symbols)
             
-            # Check if we should seek new positions
-            should_seek, seek_reason = self.risk_manager.should_seek_new_positions(
-                self.account_info, self.active_trades
-            )
+            should_seek, seek_reason = self.risk_manager.should_seek_new_positions(self.account_info, self.active_trades) if self.account_info else (False, "No account info")
             
             if should_seek and available_symbols:
-                logger.info(f"🔍 {seek_reason} - Prioritizing {len(available_symbols)} available symbols")
-                # Prioritize symbols without positions for better diversification
-                symbols_to_analyze = available_symbols[:10]  # Analyze top 10 available symbols
+                symbols_to_analyze = available_symbols[:10]
             else:
-                # Standard analysis of all symbols with rotation
                 symbols_to_analyze = self.tradable_symbols[:self.config["MAX_SYMBOLS"]]
                 import random
-                random.shuffle(symbols_to_analyze)  # Randomize order for fairness
+                random.shuffle(symbols_to_analyze)
             
             with ThreadPoolExecutor(max_workers=5) as executor:
-                futures = []
-                for symbol in symbols_to_analyze:
-                    future = executor.submit(self._analyze_symbol, symbol)
-                    futures.append((symbol, future))
-                
-                for symbol, future in futures:
+                futures = {executor.submit(self._analyze_symbol, symbol): symbol for symbol in symbols_to_analyze}
+                for future in futures:
+                    symbol = futures[future]
                     try:
-                        signal = future.result(timeout=5)
+                        signal = future.result()
                         if signal:
+                            # Pass the correct symbol from the future mapping
                             self._execute_signal(symbol, signal)
                     except Exception as e:
-                        logger.error(f"Error analyzing {symbol}: {e}")
+                        logger.error(f"Error processing analysis for {symbol}: {e}")
             
         except Exception as e:
-            logger.error(f"Error in trading loop: {e}")
+            logger.error(f"Error in run_once: {e}", exc_info=True)
     
     def _discover_symbols(self) -> List[str]:
         """Discover and filter tradable symbols with diversification priority"""
         try:
             all_symbols = self.api_client.discover_symbols()
+            if not all_symbols: return []
             
-            # Start with high-profit symbols (add # suffix)
-            priority_symbols = [s + "#" for s in HIGH_PROFIT_SYMBOLS.keys()]
+            # Sort by priority from config
+            sorted_priority = sorted(HIGH_PROFIT_SYMBOLS.items(), key=lambda item: item[1].get('priority', 99))
             
-            # Filter all symbols
-            filtered_symbols = []
+            final_symbols = [s + "#" for s, _ in sorted_priority if (s + "#") in all_symbols]
+            
+            # Add other symbols that might exist on broker but not in our priority list
             for symbol in all_symbols:
-                # Skip if not a trading symbol
-                if any(x in symbol.lower() for x in ['_i', '.i', 'mini', 'micro']):
-                    continue
-                
-                # Get instrument type (strip # for checking)
-                symbol_base = symbol.rstrip('#')
-                instrument_type = self.symbol_utils.get_instrument_type(symbol_base)
-                
-                # Add based on configuration
-                if self.config["SYMBOL_FILTER"] == "ALL":
-                    filtered_symbols.append(symbol)
-                elif self.config["SYMBOL_FILTER"] == "FOREX" and instrument_type in ['major', 'exotic']:
-                    filtered_symbols.append(symbol)
-                elif symbol in priority_symbols or symbol_base in HIGH_PROFIT_SYMBOLS:
-                    filtered_symbols.append(symbol)
-            
-            # Combine priority and filtered symbols with diversification focus
-            final_symbols = []
-            # First add priority symbols that exist in all_symbols (sorted by priority)
-            priority_list = []
-            for symbol in priority_symbols:
-                if symbol in all_symbols:
-                    symbol_base = symbol.rstrip('#')
-                    if symbol_base in HIGH_PROFIT_SYMBOLS:
-                        priority = HIGH_PROFIT_SYMBOLS[symbol_base].get('priority', 2)
-                        priority_list.append((priority, symbol))
-            
-            # Sort by priority (lower number = higher priority)
-            priority_list.sort(key=lambda x: x[0])
-            final_symbols = [symbol for _, symbol in priority_list]
-            
-            # Then add other filtered symbols
-            for symbol in filtered_symbols:
-                if symbol not in final_symbols:
+                if symbol not in final_symbols and not any(x in symbol.lower() for x in ['_i', '.i', 'mini', 'micro']):
                     final_symbols.append(symbol)
-            
-            # Limit to max symbols
+
             result = final_symbols[:self.config["MAX_SYMBOLS"]]
-            logger.info(f"📊 Symbol discovery: {len(result)} symbols selected for diversified monitoring")
+            logger.info(f"📊 Symbol discovery: {len(result)} symbols selected for monitoring.")
             return result
-            
         except Exception as e:
             logger.error(f"Error discovering symbols: {e}")
             return []
     
-    def _is_trading_hours(self) -> bool:
-        """Check if current time is within trading hours"""
-        # Trading hours check disabled - trade 24/7
-        return True
+    def _is_trading_hours(self) -> bool: return True
     
     def _should_force_trade(self) -> bool:
-        """Check if we should force a trade"""
-        if not self.config["AGGRESSIVE_MODE"]:
-            return False
-        
+        if not self.config["AGGRESSIVE_MODE"]: return False
+        if not self.active_trades and self.last_global_trade_time == 0: # First run
+             self.last_global_trade_time = time.time()
         time_since_last = time.time() - self.last_global_trade_time
         return time_since_last > self.config["FORCE_TRADE_INTERVAL"]
     
     def _force_trade(self):
         """Force a trade on the best opportunity with diversification priority"""
-        logger.info("🔥 Forcing trade due to inactivity (prioritizing diversification)")
-        self.force_trade_attempts += 1
-        
-        # Get symbols that don't have positions (diversification first)
-        available_symbols = self.risk_manager.get_available_symbols_for_trading(
-            self.active_trades, self.tradable_symbols
-        )
-        
-        # If no available symbols, check all (fallback)
+        logger.info("🔥 Forcing trade due to inactivity...")
+        available_symbols = self.risk_manager.get_available_symbols_for_trading(self.active_trades, self.tradable_symbols)
         symbols_to_check = available_symbols[:10] if available_symbols else self.tradable_symbols[:10]
         
-        best_symbol = None
+        # FIXED: Store both the best signal and its corresponding symbol
         best_signal = None
-        best_score = 0
-        
-        logger.info(f"🔍 Force trade analyzing {len(symbols_to_check)} symbols (available: {len(available_symbols)})")
+        best_symbol = None
         
         for symbol in symbols_to_check:
             df = self.market_data.get_market_data(symbol)
-            if df is None or len(df) < 50:
-                continue
+            if df is None or len(df) < 50: continue
             
             current_price = self.market_data.get_current_price(symbol)
-            if not current_price:
-                continue
+            if not current_price: continue
             
             signal = self.strategy.force_trade_signal(symbol, df, current_price)
-            if signal and signal.confidence > best_score:
-                best_symbol = symbol
-                best_signal = signal
-                best_score = signal.confidence
+            if signal:
+                # Compare quality to find the best signal
+                if best_signal is None or signal.quality > best_signal.quality:
+                    best_signal = signal
+                    best_symbol = symbol # Store the symbol along with the signal
         
-        if best_symbol and best_signal:
-            logger.info(f"🎯 Force trade selected: {best_symbol} (diversification-friendly choice)")
+        if best_signal and best_symbol:
+            # FIXED: Use the stored 'best_symbol' for logging and execution
+            logger.info(f"🎯 Force trade selected: {best_symbol}")
             self._execute_signal(best_symbol, best_signal)
         else:
-            logger.warning("🚫 No suitable symbols found for forced trade (diversification constraints)")
+            logger.warning("🚫 No suitable symbols found for forced trade.")
     
     def _analyze_symbol(self, symbol: str) -> Optional[Signal]:
         """Analyze a symbol for trading opportunities"""
         try:
-            # Get market data first to determine signal type
-            df = self.market_data.get_market_data(symbol)
-            if df is None or len(df) < 50:
+            # Step 1: Preliminary checks (spread) before heavy analysis
+            spread_ok, _ = self.market_data.check_spread(symbol)
+            if not self.config["IGNORE_SPREAD"] and not spread_ok:
+                if self.signal_queue:
+                    self.signal_queue.put({symbol: {'type': 'NONE', 'confidence': 0.0, 'quality': 0.0, 'reasons': ['High spread'], 'strategies': {}}})
+                return None
+
+            # Step 2: Get market data
+            df = self.market_data.get_market_data(symbol, count=250)
+            if df is None or len(df) < 200:
+                if self.signal_queue:
+                    self.signal_queue.put({symbol: {'type': 'NONE', 'confidence': 0.0, 'quality': 0.0, 'reasons': ['Not enough data'], 'strategies': {}}})
                 return None
             
             current_price = self.market_data.get_current_price(symbol)
-            if not current_price:
-                return None
+            if not current_price: return None
             
-            # Generate signal to know the direction
+            # Step 3: Always perform analysis and get a potential signal
             signal = self.strategy.analyze_ultra(symbol, df, current_price)
-            if not signal:
-                return None
             
-            # Now check if we can trade this symbol with the signal type (strict diversification)
-            can_trade, reason = self.risk_manager.can_trade_symbol(
-                symbol, self.active_trades, self.last_trade_time,
-                self.pending_orders, signal.type.value
-            )
-            if not can_trade:
-                # Log diversification-related rejections at debug level to avoid spam
-                if "already exists" in reason.lower() or "position already open" in reason.lower():
-                    logger.debug(f"Diversification policy: {symbol} - {reason}")
-                else:
-                    logger.info(f"Cannot trade {symbol}: {reason}")
-                return None
-            
-            # Check spread
-            spread_ok, spread = self.market_data.check_spread(symbol)
-            if not spread_ok and not self.config["IGNORE_SPREAD"]:
-                return None
-            
-            # Cache signal for visualization
-            if signal:
-                self.last_signals[symbol] = {
-                    'signal': signal,
-                    'timestamp': time.time()
-                }
-                
-                # Send signal to visualizer
-                if self.signal_queue:
-                    signal_data = {
-                        symbol: {
-                            'type': signal.type.value,
-                            'confidence': signal.confidence,
-                            'quality': signal.quality,
-                            'reasons': signal.reasons,
-                            'strategies': signal.strategies,
-                            'entry': signal.entry,
-                            'sl': signal.sl,
-                            'tp': signal.tp,
-                            'timestamp': time.time()
-                        }
+            # Step 4: IMMEDIATELY send analysis result to the visualizer queue
+            if self.signal_queue:
+                viz_data = {}
+                if signal:
+                    # A potential trade signal was found
+                    viz_data = {
+                        'type': signal.type.value,
+                        'confidence': signal.confidence,
+                        'quality': signal.quality,
+                        'reasons': [signal.reason],
+                        'strategies': signal.strategies
                     }
-                    self.signal_queue.put(signal_data)
+                else:
+                    # Analysis was done, but no clear signal emerged
+                    viz_data = {
+                        'type': 'NONE',
+                        'confidence': 0.0,
+                        'quality': 0.0,
+                        'reasons': ['No clear signal'],
+                        'strategies': {}
+                    }
+                self.signal_queue.put({symbol: viz_data})
             
+            # Step 5: Now, check if we are allowed to trade on this signal
+            if not signal:
+                return None # No signal to execute
+
+            can_trade, reason = self.risk_manager.can_trade_symbol(symbol, self.active_trades, self.last_trade_time, self.pending_orders)
+            if not can_trade:
+                if "position already open" not in reason.lower() and "pending order" not in reason.lower():
+                    logger.debug(f"Signal for {symbol} found, but cannot trade: {reason}")
+                return None # Signal exists but cannot be executed right now
+            
+            # If all checks pass, return the signal for execution
             return signal
             
         except Exception as e:
             logger.error(f"Error analyzing {symbol}: {e}")
+            # Notify visualizer of the error
+            if self.signal_queue:
+                self.signal_queue.put({symbol: {'type': 'ERROR', 'confidence': 0.0, 'reasons': [str(e)]}})
             return None
-    
-    def _share_daily_pnl_data(self):
-        """Share daily P&L data with visualizer via signal queue"""
-        if not self.signal_queue:
-            return
-            
-        current_time = time.time()
-        
-        # Check if we should send data (every 30 seconds or when significant change)
-        should_send = False
-        
-        # Send every 30 seconds
-        if current_time - self.last_pnl_share_time >= 30:
-            should_send = True
-        
-        # Send if significant change in daily P&L (more than 1% of balance or 1000 yen)
-        if self.last_shared_pnl is not None and self.day_start_balance:
-            pnl_change = abs(self.daily_pnl - self.last_shared_pnl)
-            threshold = max(self.day_start_balance * 0.01, 1000)  # 1% of balance or 1000 yen
-            if pnl_change >= threshold:
-                should_send = True
-        
-        if should_send:
-            try:
-                pnl_data = {
-                    '_daily_pnl_update': {
-                        'daily_pnl': self.daily_pnl,
-                        'daily_closed_pnl': self.daily_closed_pnl,
-                        'day_start_balance': self.day_start_balance,
-                        'current_day': str(self.current_day) if self.current_day else None,
-                        'timestamp': current_time
-                    }
-                }
-                self.signal_queue.put(pnl_data)
-                self.last_pnl_share_time = current_time
-                self.last_shared_pnl = self.daily_pnl
-                logger.debug(f"Shared daily P&L data: {self.daily_pnl:.2f}")
-            except Exception as e:
-                logger.error(f"Error sharing daily P&L data: {e}")
     
     def _execute_signal(self, symbol: str, signal: Signal):
         """Execute trading signal"""
         try:
-            # Double-check we don't have a pending order
             if symbol in self.pending_orders:
-                logger.warning(f"Pending order already exists for {symbol}, skipping")
-                return
+                if time.time() - self.pending_orders[symbol]['timestamp'] < 60:
+                    logger.warning(f"Pending order already exists for {symbol}, skipping.")
+                    return
             
-            # Mark as pending immediately to prevent duplicates
-            self.pending_orders[symbol] = {
-                'signal': signal,
-                'timestamp': time.time()
-            }
-            
-            # Get symbol info
+            self.pending_orders[symbol] = {'signal': signal, 'timestamp': time.time()}
+
             symbol_info = self.api_client.get_symbol_info(symbol)
             if not symbol_info:
                 logger.error(f"Cannot get symbol info for {symbol}")
-                del self.pending_orders[symbol]  # Remove pending status
+                del self.pending_orders[symbol]
                 return
-            
-            # Calculate position size
-            sl_distance = abs(signal.entry - signal.sl)
-            volume = self.risk_manager.calculate_position_size(
-                symbol, sl_distance, signal.entry, self.balance, symbol_info, self.account_info
+
+            # ARCHITECTURE CHANGE: Adjust parameters for risk BEFORE validating them
+            adjusted_signal, volume = self.risk_manager.adjust_trade_parameters_for_risk(
+                signal, self.balance, symbol_info
             )
-            
-            # Validate trade parameters
+
+            if volume <= 0:
+                logger.error(f"Trade rejected for {symbol} due to zero or negative volume calculation.")
+                del self.pending_orders[symbol]
+                return
+
+            # Now validate the ADJUSTED parameters
             valid, reason = self.risk_manager.validate_trade_parameters(
-                symbol, signal.type.value, signal.entry, signal.sl, signal.tp
+                symbol, adjusted_signal.type.value, adjusted_signal.entry, adjusted_signal.sl, adjusted_signal.tp
             )
             if not valid:
-                logger.warning(f"Invalid trade parameters for {symbol}: {reason}")
+                logger.warning(f"Invalid adjusted trade parameters for {symbol}: {reason}")
+                del self.pending_orders[symbol]
                 return
             
-            # Check margin safety before placing order
             if self.account_info:
+                sl_distance = abs(adjusted_signal.entry - adjusted_signal.sl)
                 margin_safe, margin_reason = self.risk_manager.check_margin_safety_before_trade(
-                    symbol, volume, signal.entry, sl_distance, self.account_info
+                    symbol, volume, adjusted_signal.entry, sl_distance, self.account_info
                 )
                 if not margin_safe:
                     logger.warning(f"⚠️ Margin safety check failed for {symbol}: {margin_reason}")
-                    logger.info(f"   Free margin: {self.account_info.get('margin_free', 0):.2f}")
-                    logger.info(f"   Current margin level: {self.account_info.get('margin_level', 0):.0f}%")
+                    del self.pending_orders[symbol]
                     return
             
-            # Place order
-            ticket = self.order_manager.place_order(signal, symbol, volume)
+            ticket = self.order_manager.place_order(adjusted_signal, symbol, volume)
             if ticket:
-                # Record trade
                 trade = Trade(
-                    ticket=ticket,
-                    symbol=symbol,
-                    type=signal.type.value,
-                    entry_price=signal.entry,
-                    sl=signal.sl,
-                    tp=signal.tp,
-                    volume=volume,
-                    entry_time=datetime.now()
+                    ticket=ticket, symbol=symbol, type=adjusted_signal.type.value,
+                    entry_price=adjusted_signal.entry, sl=adjusted_signal.sl, tp=adjusted_signal.tp,
+                    volume=volume, entry_time=datetime.now()
                 )
-                
                 self.active_trades[ticket] = trade
-                self.symbol_positions[symbol] = signal.type.value  # Track position type
+                self.symbol_positions[symbol] = adjusted_signal.type.value
                 self.last_trade_time[symbol] = time.time()
                 self.last_global_trade_time = time.time()
                 self.daily_trades += 1
-                self.trades_this_hour += 1
                 
-                # Log diversification status
-                occupied_symbols = len(set(t.symbol for t in self.active_trades.values()))
-                logger.info(f"🎯 Diversification Update: {occupied_symbols}/{len(self.tradable_symbols)} symbols now have positions")
-                
-                # Remove from pending orders
-                if symbol in self.pending_orders:
-                    del self.pending_orders[symbol]
-            else:
-                # Order failed, remove from pending
-                if symbol in self.pending_orders:
-                    del self.pending_orders[symbol]
-                
+            del self.pending_orders[symbol]
+
         except Exception as e:
-            logger.error(f"Error executing signal for {symbol}: {e}")
-            # Always clean up pending orders on error
+            logger.error(f"Error executing signal for {symbol}: {e}", exc_info=True)
             if symbol in self.pending_orders:
                 del self.pending_orders[symbol]
     
     def _manage_positions(self):
         """Manage open positions"""
         try:
-            # First check for positions closed by SL/TP
             current_positions = self.api_client.get_positions()
+            if current_positions is None:
+                logger.warning("Could not retrieve current positions.")
+                return
+
             current_tickets = {pos.get('ticket') for pos in current_positions}
             
-            # Find positions that were closed (not in current positions anymore)
-            for ticket, trade in list(self.active_trades.items()):
-                if ticket not in current_tickets:
-                    # Position was closed by SL/TP
-                    # Try to get last known P&L from history
-                    logger.info(f"🎯 Position {ticket} ({trade.symbol}) closed by SL/TP")
-                    # Clean up position tracking
+            closed_tickets = set(self.active_trades.keys()) - current_tickets
+            for ticket in closed_tickets:
+                trade = self.active_trades.pop(ticket, None)
+                if trade:
+                    logger.info(f"🎯 Position {ticket} ({trade.symbol}) closed (detected by disappearance).")
                     if trade.symbol in self.symbol_positions:
                         del self.symbol_positions[trade.symbol]
-                    # Log diversification update
-                    logger.info(f"📈 Diversification: {trade.symbol} now available for new positions")
-                    # For now, we'll update closed P&L in the next account update
-                    del self.active_trades[ticket]
-            
-            # Then manage remaining positions
-            results = self.order_manager.manage_positions(self.active_trades)
-            
-            # Track manually closed position P&L
-            for ticket in results['closed']:
-                if ticket in self.active_trades:
-                    trade = self.active_trades[ticket]
-                    # Get position info before closing
-                    position_info = self.order_manager.get_position_info(ticket)
-                    if position_info:
-                        closed_profit = position_info.get('profit', 0)
-                        self.daily_closed_pnl += closed_profit
-                        logger.info(f"💰 Position {ticket} closed with P&L: {closed_profit:.2f}")
-                    # Clean up position tracking
-                    if trade.symbol in self.symbol_positions:
-                        del self.symbol_positions[trade.symbol]
-                    logger.info(f"📈 Diversification: {trade.symbol} now available for new positions")
-                    del self.active_trades[ticket]
-            
-            # Update closed P&L from balance change
+
+            # Update PnL based on balance changes
             if self.day_start_balance is not None and self.balance is not None:
-                # Calculate actual daily P&L from balance change
                 balance_change = self.balance - self.day_start_balance
-                positions = self.api_client.get_positions()
-                open_pnl = sum(pos.get('profit', 0) for pos in positions)
-                # Closed P&L = balance change - open P&L
+                open_pnl = sum(pos.get('profit', 0) for pos in current_positions)
                 self.daily_closed_pnl = balance_change - open_pnl
-            
+
+            # Manage remaining open positions
+            management_results = self.order_manager.manage_positions(self.active_trades)
+            for ticket in management_results.get('closed', []):
+                if ticket in self.active_trades:
+                    self.active_trades.pop(ticket)
+
         except Exception as e:
-            logger.error(f"Error managing positions: {e}")
+            logger.error(f"Error managing positions: {e}", exc_info=True)
+    
+    def _cleanup_pending_orders(self):
+        """Clean up expired pending orders"""
+        expired = [s for s, d in list(self.pending_orders.items()) if time.time() - d['timestamp'] > 60]
+        for s in expired:
+            logger.warning(f"Cleaning up expired pending order for {s}")
+            del self.pending_orders[s]
