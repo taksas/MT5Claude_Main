@@ -36,9 +36,7 @@ class DisplayData:
     balance: float = 0
     equity: float = 0
     profit: float = 0
-    daily_pnl: float = 0
     positions: List[Dict] = None
-    closed_today: List[Dict] = None
     strategy_signals: Dict[str, Dict] = None
     last_update: datetime = None
 
@@ -48,10 +46,6 @@ class TradingVisualizer:
         self.data_queue = data_queue
         self.running = False
         self.display_data = DisplayData()
-        
-        # Track closed positions
-        self.known_positions = set()
-        self.closed_positions = []
         
         # Initialize strategy signals (will be populated dynamically)
         self.display_data.strategy_signals = {}
@@ -91,13 +85,6 @@ class TradingVisualizer:
             pass
         return []
         
-    def get_history(self) -> List[Dict]:
-        """Fetch today's trade history"""
-        # Note: History endpoint not available in current API
-        # This would need to be implemented in the MT5 Bridge API
-        # For now, return empty list
-        return []
-        
     def update_display_data(self):
         """Update all display data"""
         # Account info
@@ -111,23 +98,6 @@ class TradingVisualizer:
         positions = self.get_positions()
         self.display_data.positions = positions
         
-        # Track closed positions
-        current_tickets = {p['ticket'] for p in positions}
-        newly_closed = self.known_positions - current_tickets
-        
-        if newly_closed:
-            # Fetch history to get details of closed positions
-            history = self.get_history()
-            for trade in history:
-                if trade.get('position_id') in newly_closed:
-                    self.closed_positions.append(trade)
-                    
-        self.known_positions = current_tickets
-        
-        # Calculate daily P&L from closed positions
-        daily_pnl = sum(trade.get('profit', 0) for trade in self.closed_positions)
-        self.display_data.daily_pnl = daily_pnl
-        
         # Get strategy signals from queue if available
         if self.data_queue:
             # Initialize strategy signals if needed
@@ -138,9 +108,10 @@ class TradingVisualizer:
             while not self.data_queue.empty():
                 try:
                     signals = self.data_queue.get_nowait()
-                    # Update signals for each symbol
-                    for symbol, data in signals.items():
-                        self.display_data.strategy_signals[symbol] = data
+                    # Update signals for each symbol (ignore daily P&L updates)
+                    if '_daily_pnl_update' not in signals:
+                        for symbol, data in signals.items():
+                            self.display_data.strategy_signals[symbol] = data
                 except:
                     break
                 
@@ -148,9 +119,9 @@ class TradingVisualizer:
         
     def display_header(self):
         """Display header information"""
-        print("=" * 100)
-        print("                              ULTRA TRADING SYSTEM MONITOR")
-        print("=" * 100)
+        print("=" * 50)
+        print("           ULTRA TRADING MONITOR")
+        print("=" * 50)
         
     def display_account(self):
         """Display account information in compact format"""
@@ -158,9 +129,7 @@ class TradingVisualizer:
         print(f"Balance: {self.format_currency(self.display_data.balance)} | "
               f"Equity: {self.format_currency(self.display_data.equity)} | "
               f"Floating: {self.format_currency(self.display_data.profit)} "
-              f"({self.display_data.profit/self.display_data.balance*100:+.1f}%) | " if self.display_data.balance > 0 else " | ", end="")
-        print(f"Daily: {self.format_currency(self.display_data.daily_pnl)} "
-              f"({self.display_data.daily_pnl/self.display_data.balance*100:+.1f}%)" if self.display_data.balance > 0 else "")
+              f"({self.display_data.profit/self.display_data.balance*100:+.1f}%)" if self.display_data.balance > 0 else "")
         
     def display_positions(self):
         """Display open positions in compact format"""
@@ -169,33 +138,22 @@ class TradingVisualizer:
             total_profit = sum(pos.get('profit', 0) for pos in self.display_data.positions)
             
             # Show summary
-            for i, pos in enumerate(self.display_data.positions[:5]):  # Show first 5
+            for i, pos in enumerate(self.display_data.positions[:3]):  # Show first 3
                 symbol = pos['symbol'].replace('#', '')
                 type_icon = "🟢" if pos['type'] == 0 else "🔴"
                 profit = pos['profit']
                 profit_str = f"+{profit:.0f}" if profit > 0 else f"{profit:.0f}"
                 print(f"{type_icon}{symbol}:{profit_str}¥", end=" ")
                 
-            if len(self.display_data.positions) > 5:
-                print(f"(+{len(self.display_data.positions)-5} more)", end=" ")
+            if len(self.display_data.positions) > 3:
+                print(f"(+{len(self.display_data.positions)-3} more)", end=" ")
                 
             print(f"| Total: {self.format_currency(total_profit)}")
-                      
-    def display_closed_positions(self):
-        """Display closed positions summary"""
-        if self.closed_positions:
-            wins = sum(1 for t in self.closed_positions if t.get('profit', 0) > 0)
-            total_closed_pnl = sum(t.get('profit', 0) for t in self.closed_positions)
-            win_rate = wins / len(self.closed_positions) * 100 if self.closed_positions else 0
-            
-            print(f"\n📊 CLOSED TODAY ({len(self.closed_positions)}): "
-                  f"Wins: {wins} | Win Rate: {win_rate:.0f}% | "
-                  f"P&L: {self.format_currency(total_closed_pnl)}")
                       
     def display_strategy_signals(self):
         """Display strategy confidence levels with expanded 2-line format per symbol"""
         print("\n🎯 STRATEGY SIGNALS (EXPANDED VIEW)")
-        print("=" * 100)
+        print("=" * 50)
         
         if not self.display_data.strategy_signals:
             print("Waiting for signals...")
@@ -228,8 +186,8 @@ class TradingVisualizer:
                     signal_color = "\033[90m"
                 
                 # Line 1: Symbol, Signal, Confidence, Quality, Main Reasons
-                print(f"\n{signal_icon} {signal_color}{symbol:<10}\033[0m Signal: {signal_color}{signal_type:<6}\033[0m "
-                      f"Conf: {confidence:>5.1%} | Qual: {quality:>5.1%} | {', '.join(reasons[:3]) if reasons else 'Analyzing...'}")
+                print(f"\n{signal_icon} {signal_color}{symbol:<8}\033[0m {signal_color}{signal_type:<4}\033[0m "
+                      f"C:{confidence:>4.1%} Q:{quality:>4.1%} | {', '.join(reasons[:2]) if reasons else 'Analyzing...'}")
                 
                 # Line 2: All active indicators with their values
                 if strategies:
@@ -269,9 +227,9 @@ class TradingVisualizer:
                                 active_indicators.append(f"{strat}:{score:.0%}")
                     
                     # Display indicators (limit to fit on screen)
-                    indicator_str = " | ".join(active_indicators[:12])
-                    if len(active_indicators) > 12:
-                        indicator_str += f" (+{len(active_indicators)-12} more)"
+                    indicator_str = " | ".join(active_indicators[:6])
+                    if len(active_indicators) > 6:
+                        indicator_str += f" (+{len(active_indicators)-6} more)"
                     
                     print(f"   └─ Indicators: {indicator_str}")
                 else:
@@ -279,10 +237,10 @@ class TradingVisualizer:
                 
                 # Add separator every 5 symbols for readability
                 if (idx + 1) % 5 == 0:
-                    print("   " + "-" * 95)
+                    print("   " + "-" * 47)
                     
             # Summary footer
-            print("\n" + "=" * 100)
+            print("\n" + "=" * 50)
             total_symbols = len(self.display_data.strategy_signals)
             buy_count = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'BUY')
             sell_count = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'SELL')
@@ -294,7 +252,7 @@ class TradingVisualizer:
                         
     def display_footer(self):
         """Display footer information"""
-        print("\n" + "=" * 80)
+        print("\n" + "=" * 40)
         print(f"Last Update: {self.display_data.last_update.strftime('%Y-%m-%d %H:%M:%S')}")
         print("Press Ctrl+C to exit")
         
@@ -312,7 +270,6 @@ class TradingVisualizer:
                 self.display_header()
                 self.display_account()
                 self.display_positions()
-                self.display_closed_positions()
                 self.display_strategy_signals()
                 self.display_footer()
                 

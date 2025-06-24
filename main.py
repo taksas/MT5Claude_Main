@@ -9,6 +9,7 @@ import time
 import logging
 import argparse
 import signal
+import queue
 from datetime import datetime
 
 # Configure logging
@@ -25,6 +26,8 @@ class UltraTradingSystem:
         self.engine = None
         self.visualizer = None
         self.shutdown = False
+        # Create shared queue for signal communication
+        self.signal_queue = queue.Queue()
         
     def signal_handler(self, signum, frame):
         """Handle shutdown signals"""
@@ -54,13 +57,13 @@ class UltraTradingSystem:
                 # Import and run engine
                 logger.info("Starting Ultra Trading Engine...")
                 from components.engine_core import UltraTradingEngine
-                self.engine = UltraTradingEngine()
+                self.engine = UltraTradingEngine(signal_queue=self.signal_queue)
                 
                 if self.visualize and self.mode == 'engine':
                     # Run engine with visualizer in same process
                     logger.info("Starting Visualizer...")
                     from components.visualizer import TradingVisualizer
-                    self.visualizer = TradingVisualizer()
+                    self.visualizer = TradingVisualizer(data_queue=self.signal_queue)
                     
                     # Start visualizer in thread
                     import threading
@@ -75,7 +78,7 @@ class UltraTradingSystem:
                 # Run visualizer only
                 logger.info("Starting Visualizer Only Mode...")
                 from components.visualizer import TradingVisualizer
-                self.visualizer = TradingVisualizer()
+                self.visualizer = TradingVisualizer(data_queue=self.signal_queue)
                 self.visualizer.start()
                 
                 

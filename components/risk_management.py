@@ -186,16 +186,10 @@ class RiskManagement:
             return CONFIG["MIN_VOLUME"]
     
     def check_account_safety(self, balance: float, equity: float, margin: float, 
-                           daily_pnl: float, margin_level: float = None) -> Tuple[bool, str]:
+                           daily_pnl: float = None, margin_level: float = None) -> Tuple[bool, str]:
         """Check if account is safe to trade"""
         try:
-            # Balance check removed - trade with any balance
-            
-            # Check daily loss limit - only check if P&L is negative
-            if daily_pnl < 0 and balance > 0:
-                daily_loss_pct = abs(daily_pnl) / balance
-                if daily_loss_pct > CONFIG["MAX_DAILY_LOSS"]:
-                    return False, f"Daily loss limit exceeded: {daily_loss_pct:.1%} (Loss: {daily_pnl:.2f})"
+            # Check account safety
             
             # Check margin level
             if margin > 0:

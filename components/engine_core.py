@@ -65,6 +65,10 @@ class UltraTradingEngine:
         # Performance tracking
         self.last_signals = {}
         
+        # Daily P&L sharing tracking
+        self.last_pnl_share_time = 0
+        self.last_shared_pnl = None
+        
     def start(self):
         """Initialize and start trading"""
         if not self.api_client.check_connection():
@@ -158,13 +162,16 @@ class UltraTradingEngine:
                 else:
                     self._last_pnl_log_time = time.time()
                 
+                # Share daily P&L data with visualizer
+                self._share_daily_pnl_data()
+                
                 # Update strategy with account leverage
                 leverage = account_info.get('leverage', 100)
                 self.strategy.set_account_leverage(leverage)
                 
-                # Check account safety with proper daily P&L
+                # Check account safety
                 safe, reason = self.risk_manager.check_account_safety(
-                    self.day_start_balance, equity, margin, self.daily_pnl
+                    self.day_start_balance, equity, margin
                 )
                 if not safe:
                     logger.warning(f"⚠️ Account not safe: {reason}")
@@ -368,12 +375,68 @@ class UltraTradingEngine:
                     'signal': signal,
                     'timestamp': time.time()
                 }
+                
+                # Send signal to visualizer
+                if self.signal_queue:
+                    signal_data = {
+                        symbol: {
+                            'type': signal.type.value,
+                            'confidence': signal.confidence,
+                            'quality': signal.quality,
+                            'reasons': signal.reasons,
+                            'strategies': signal.strategies,
+                            'entry': signal.entry,
+                            'sl': signal.sl,
+                            'tp': signal.tp,
+                            'timestamp': time.time()
+                        }
+                    }
+                    self.signal_queue.put(signal_data)
             
             return signal
             
         except Exception as e:
             logger.error(f"Error analyzing {symbol}: {e}")
             return None
+    
+    def _share_daily_pnl_data(self):
+        """Share daily P&L data with visualizer via signal queue"""
+        if not self.signal_queue:
+            return
+            
+        current_time = time.time()
+        
+        # Check if we should send data (every 30 seconds or when significant change)
+        should_send = False
+        
+        # Send every 30 seconds
+        if current_time - self.last_pnl_share_time >= 30:
+            should_send = True
+        
+        # Send if significant change in daily P&L (more than 1% of balance or 1000 yen)
+        if self.last_shared_pnl is not None and self.day_start_balance:
+            pnl_change = abs(self.daily_pnl - self.last_shared_pnl)
+            threshold = max(self.day_start_balance * 0.01, 1000)  # 1% of balance or 1000 yen
+            if pnl_change >= threshold:
+                should_send = True
+        
+        if should_send:
+            try:
+                pnl_data = {
+                    '_daily_pnl_update': {
+                        'daily_pnl': self.daily_pnl,
+                        'daily_closed_pnl': self.daily_closed_pnl,
+                        'day_start_balance': self.day_start_balance,
+                        'current_day': str(self.current_day) if self.current_day else None,
+                        'timestamp': current_time
+                    }
+                }
+                self.signal_queue.put(pnl_data)
+                self.last_pnl_share_time = current_time
+                self.last_shared_pnl = self.daily_pnl
+                logger.debug(f"Shared daily P&L data: {self.daily_pnl:.2f}")
+            except Exception as e:
+                logger.error(f"Error sharing daily P&L data: {e}")
     
     def _execute_signal(self, symbol: str, signal: Signal):
         """Execute trading signal"""
@@ -454,17 +517,6 @@ class UltraTradingEngine:
                 # Order failed, remove from pending
                 if symbol in self.pending_orders:
                     del self.pending_orders[symbol]
-                
-                # Send to visualizer
-                if self.signal_queue:
-                    self.signal_queue.put({
-                        'type': 'trade',
-                        'symbol': symbol,
-                        'signal': signal,
-                        'volume': volume,
-                        'ticket': ticket,
-                        'timestamp': time.time()
-                    })
                 
         except Exception as e:
             logger.error(f"Error executing signal for {symbol}: {e}")
