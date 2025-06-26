@@ -13,14 +13,12 @@ from dataclasses import dataclass
 import hashlib
 from collections import deque
 
-from .trading_models import Signal, SignalType
 from .indicators import (
     QuantumUltraIntelligentIndicators, quantum_indicators,
     QuantumState, QuantumFieldState, ConsciousnessField, 
     HyperdimensionalState, CausalStructure, NeuromorphicState
 )
-from .symbol_utils import SymbolUtils
-from .trading_config import CONFIG, get_symbol_config
+from .trading_config import CONFIG, get_symbol_config, Signal, SignalType, SymbolUtils
 
 logger = logging.getLogger('UltraIntelligentTradingStrategy')
 

@@ -10,8 +10,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 
 from .mt5_api_client import MT5APIClient
-from .trading_models import Trade, Signal, SignalType
-from .symbol_utils import SymbolUtils
+from .trading_config import Trade, Signal, SignalType, SymbolUtils
 
 logger = logging.getLogger('OrderManagement')
 

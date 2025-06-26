@@ -12,11 +12,9 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from concurrent.futures import ThreadPoolExecutor
 
-from .trading_config import CONFIG, HIGH_PROFIT_SYMBOLS
-from .trading_models import Trade, Signal
+from .trading_config import CONFIG, HIGH_PROFIT_SYMBOLS, Trade, Signal, SymbolUtils
 from .mt5_api_client import MT5APIClient
 from .market_data import MarketData
-from .symbol_utils import SymbolUtils
 from .trading_strategy import TradingStrategy
 from .risk_management import RiskManagement
 from .order_management import OrderManagement

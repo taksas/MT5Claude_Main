@@ -11,8 +11,7 @@ from typing import Dict, Optional, Tuple, Any
 from datetime import datetime
 
 from .mt5_api_client import MT5APIClient
-from .symbol_utils import SymbolUtils
-from .trading_config import HIGH_PROFIT_SYMBOLS, CONFIG
+from .trading_config import HIGH_PROFIT_SYMBOLS, CONFIG, SymbolUtils
 
 logger = logging.getLogger('MarketData')
 

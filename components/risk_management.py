@@ -9,8 +9,7 @@ import time
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
 
-from .symbol_utils import SymbolUtils
-from .trading_config import CONFIG, get_symbol_config
+from .trading_config import CONFIG, get_symbol_config, SymbolUtils
 
 logger = logging.getLogger('RiskManagement')
 
