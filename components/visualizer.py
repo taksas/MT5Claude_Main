@@ -25,7 +25,7 @@ CONFIG = {
     "API_BASE": "http://172.28.144.1:8000",
     "REFRESH_RATE": 1,  # seconds
     "ACCOUNT_CURRENCY": "JPY",
-    "LOG_MAX_LINES": 10 # ログ表示領域の最大行数
+    "LOG_MAX_LINES": 50 # ログ表示領域の最大行数
 }
 
 @dataclass

@@ -84,22 +84,22 @@ class RiskManagement:
         try:
             # Balance check removed - trade with any balance
             
-            # Check daily loss limit
-            daily_loss_pct = abs(daily_pnl / balance) if balance > 0 else 0
-            if daily_loss_pct > CONFIG["MAX_DAILY_LOSS"]:
-                return False, f"Daily loss limit exceeded: {daily_loss_pct:.1%}"
+            # # Check daily loss limit
+            # daily_loss_pct = abs(daily_pnl / balance) if balance > 0 else 0
+            # if daily_loss_pct > CONFIG["MAX_DAILY_LOSS"]:
+            #     return False, f"Daily loss limit exceeded: {daily_loss_pct:.1%}"
             
-            # Check margin level
-            if margin > 0:
-                margin_level = (equity / margin) * 100
-                if margin_level < 200:  # Minimum 200% margin level
-                    return False, f"Margin level too low: {margin_level:.0f}%"
+            # # Check margin level
+            # if margin > 0:
+            #     margin_level = (equity / margin) * 100
+            #     if margin_level < 200:  # Minimum 200% margin level
+            #         return False, f"Margin level too low: {margin_level:.0f}%"
             
             # Check drawdown
-            if equity < balance * 0.95:  # More than 5% drawdown
-                drawdown = (balance - equity) / balance
-                if drawdown > 0.10:  # 10% max drawdown
-                    return False, f"Drawdown too high: {drawdown:.1%}"
+            # if equity < balance * 0.95:  # More than 5% drawdown
+            #     drawdown = (balance - equity) / balance
+            #     if drawdown > 0.10:  # 10% max drawdown
+            #         return False, f"Drawdown too high: {drawdown:.1%}"
             
             return True, "Account safe"
             
@@ -140,11 +140,11 @@ class RiskManagement:
             
             # Limit positions per instrument type
             max_per_type = {
-                'exotic': 2,
-                'crypto': 1,
-                'metal': 2,
-                'index': 2,
-                'major': 3
+                'exotic': 0,
+                'crypto': 0,
+                'metal': 0,
+                'index': 0,
+                'major': 5
             }
             
             current_count = type_counts.get(instrument_type, 0)

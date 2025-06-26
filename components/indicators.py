@@ -3233,7 +3233,7 @@ class QuantumUltraIntelligentIndicators:
             total = sum(self.attention_weights.values())
             self.attention_weights = {k: v/total for k, v in self.attention_weights.items()}
             
-            logger.info(f"Performed evolutionary mutation at generation {self.evolution_generation}")
+            # logger.info(f"Performed evolutionary mutation at generation {self.evolution_generation}")
             
         except Exception as e:
             logger.error(f"Error in evolutionary mutation: {e}")
