@@ -162,42 +162,26 @@ class UltraTradingEngine:
             raise
     
     def _discover_symbols(self) -> List[str]:
-        """Discover and filter tradable symbols"""
+        """Discover and filter tradable symbols - Only use HIGH_PROFIT_SYMBOLS"""
         try:
             all_symbols = self.api_client.discover_symbols()
             
-            # Start with high-profit symbols (add # suffix)
-            priority_symbols = [s + "#" for s in HIGH_PROFIT_SYMBOLS.keys()]
+            # Only use explicitly permitted symbols from HIGH_PROFIT_SYMBOLS
+            permitted_symbols = [s + "#" for s in HIGH_PROFIT_SYMBOLS.keys()]
             
-            # Filter all symbols
-            filtered_symbols = []
-            for symbol in all_symbols:
-                # Skip if not a trading symbol
-                if any(x in symbol.lower() for x in ['_i', '.i', 'mini', 'micro']):
-                    continue
-                
-                # Get instrument type (strip # for checking)
-                symbol_base = symbol.rstrip('#')
-                instrument_type = self.symbol_utils.get_instrument_type(symbol_base)
-                
-                # Add based on configuration
-                if self.config["SYMBOL_FILTER"] == "FOREX" and instrument_type in ['major']:
-                    filtered_symbols.append(symbol)
-
-            
-            # Combine priority and filtered symbols
+            # Verify permitted symbols exist in API and return only those
             final_symbols = []
-            # First add priority symbols that exist in all_symbols
-            for symbol in priority_symbols:
+            for symbol in permitted_symbols:
                 if symbol in all_symbols:
                     final_symbols.append(symbol)
-            # Then add other filtered symbols
-            for symbol in filtered_symbols:
-                if symbol not in final_symbols:
-                    final_symbols.append(symbol)
+                else:
+                    logger.warning(f"Permitted symbol {symbol} not available in API")
             
-            # Limit to max symbols
-            return final_symbols[:self.config["MAX_SYMBOLS"]]
+            if not final_symbols:
+                logger.error("No permitted symbols available for trading")
+                raise RuntimeError("No permitted symbols available for trading")
+            
+            return final_symbols
             
         except Exception as e:
             logger.error(f"Error discovering symbols: {e}")
