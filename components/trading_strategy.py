@@ -575,7 +575,6 @@ class TradingStrategy:
         elif self.symbol_utils.is_index_pair(symbol):
             return 1.0  # Indices typically in points
         else:
-<<<<<<< HEAD
             return 0.0001  # Standard forex
     
     # Ultra-Intelligent Quantum Methods
@@ -4269,6 +4268,3 @@ class TradingStrategy:
             raise
                    'transcendent_confidence': 0.5, 'ultimate_decision': 'wait',
                    'intelligence_level': 5, 'decision_clarity': 0.5, 'quantum_coherence': 0.5}
-=======
-            return 0.0001  # Standard forex
->>>>>>> b9a9e59 (完璧に復元されました！正常な{}で囲われたリターン構造を持つtrading_stra)
