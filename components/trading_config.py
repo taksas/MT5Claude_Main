@@ -75,7 +75,7 @@ class SymbolUtils:
     def filter_symbols(self, symbols: List[str], include_types: List[str] = None) -> List[str]:
         """Filter symbols by instrument type"""
         if include_types is None:
-            include_types = ['major', 'exotic', 'metal', 'crypto', 'index']
+            include_types = ['major']
         
         filtered = []
         for symbol in symbols:

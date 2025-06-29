@@ -175,12 +175,9 @@ class UltraTradingEngine:
                 instrument_type = self.symbol_utils.get_instrument_type(symbol_base)
                 
                 # Add based on configuration
-                if self.config["SYMBOL_FILTER"] == "ALL":
+                if self.config["SYMBOL_FILTER"] == "FOREX" and instrument_type in ['major']:
                     filtered_symbols.append(symbol)
-                elif self.config["SYMBOL_FILTER"] == "FOREX" and instrument_type in ['major', 'exotic']:
-                    filtered_symbols.append(symbol)
-                elif symbol in priority_symbols or symbol_base in HIGH_PROFIT_SYMBOLS:
-                    filtered_symbols.append(symbol)
+
             
             # Combine priority and filtered symbols
             final_symbols = []

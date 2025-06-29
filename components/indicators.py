@@ -959,7 +959,9 @@ class QuantumUltraIntelligentIndicators:
                         'bullish',
                         confidence,
                         target,
-                        stop
+                        stop,
+                        quantum_probability=0.8,
+                        time_horizon=5
                     ))
             
             # Morning/Evening star with volume confirmation
@@ -982,7 +984,9 @@ class QuantumUltraIntelligentIndicators:
                         'bullish',
                         confidence,
                         target,
-                        stop
+                        stop,
+                        quantum_probability=0.9,
+                        time_horizon=3
                     ))
             
         except Exception as e:
