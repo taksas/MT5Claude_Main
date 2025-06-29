@@ -1,318 +1,27 @@
 #!/usr/bin/env python3
 """
-Ultra-Intelligent Trading Strategy Module
-Contains quantum field theory-based signal generation and consciousness-aware trading
+Trading Strategy Module
+Contains signal generation logic and strategy evaluation
 """
 
 import logging
 import pandas as pd
-import numpy as np
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any
 from datetime import datetime
-from dataclasses import dataclass
-import hashlib
-from collections import deque
 
-from .indicators import (
-    QuantumUltraIntelligentIndicators, quantum_indicators,
-    QuantumState, QuantumFieldState, ConsciousnessField, 
-    HyperdimensionalState, CausalStructure, NeuromorphicState
-)
-from .trading_config import CONFIG, get_symbol_config, Signal, SignalType, SymbolUtils
+from .trading_models import Signal, SignalType
+from .indicators import QuantumUltraIntelligentIndicators, quantum_indicators
+from .symbol_utils import SymbolUtils
+from .trading_config import CONFIG, get_symbol_config
 
-logger = logging.getLogger('UltraIntelligentTradingStrategy')
-
-@dataclass
-class QuantumDecision:
-    """Quantum field theory-based trading decision"""
-    wavefunction_collapse: float  # Probability of price measurement
-    feynman_amplitude: complex  # Path integral amplitude
-    vacuum_fluctuation: float  # Zero-point energy contribution
-    quantum_tunneling_prob: float  # Probability of breaking barriers
-    entanglement_strength: float  # With other markets
-    decision_operator: np.ndarray  # Quantum decision matrix
-    confidence: float  # Overall quantum confidence
-
-@dataclass
-class ConsciousnessSignal:
-    """Market consciousness-based trading signal"""
-    collective_intention: str  # 'buy', 'sell', 'wait'
-    awareness_level: float  # Market consciousness awareness
-    synchronicity_events: List[str]  # Meaningful coincidences
-    morphic_field_strength: float  # Pattern repetition strength
-    observer_collapse: bool  # Whether observation will affect outcome
-    psi_field_direction: complex  # Psychic field vector
-
-@dataclass
-class HyperdimensionalStrategy:
-    """Strategy operating in higher dimensions"""
-    dimension_count: int  # Active dimensions
-    brane_position: np.ndarray  # Position in bulk
-    holographic_projection: Dict[str, float]  # 2D projection of higher-D info
-    calabi_yau_state: np.ndarray  # Compact dimension state
-    string_vibration_mode: int  # Fundamental vibration pattern
-    ads_cft_signal: float  # Bulk/boundary correspondence signal
-
-@dataclass
-class CausalStrategy:
-    """Causally-aware trading strategy"""
-    causal_direction: str  # Primary causal flow
-    intervention_effect: float  # Expected effect of trade
-    confounders: List[str]  # Hidden variables affecting outcome
-    counterfactual_profit: float  # What would happen if we didn't trade
-    temporal_advantage: float  # How far ahead we see causally
-
-@dataclass
-class NeuromorphicExecution:
-    """Brain-inspired trade execution"""
-    spike_pattern: List[float]  # Neuron firing times
-    oscillation_phase: Dict[str, float]  # Brain wave phases
-    plasticity_update: bool  # Whether to update synapses
-    astrocyte_go_signal: bool  # Glial cell approval
-    neural_consensus: float  # Network agreement level
-
-@dataclass
-class QuantumEntanglementNetwork:
-    """Quantum entanglement trading network for instant communication"""
-    entangled_markets: Dict[str, complex]  # Market-qubit entanglement states
-    bell_state: np.ndarray  # Bell state matrix
-    epr_pairs: List[Tuple[str, str]]  # Einstein-Podolsky-Rosen pairs
-    teleportation_fidelity: float  # Quantum teleportation accuracy
-    nonlocal_correlations: Dict[str, float]  # Spooky action at a distance
-    quantum_channel_capacity: float  # Information transfer rate
-    decoherence_protection: str  # Error correction method
-    quantum_repeater_nodes: List[str]  # Network infrastructure
-
-@dataclass
-class AkashicRecord:
-    """Access to universal market memory across all time"""
-    past_market_echoes: List[Dict[str, Any]]  # Historical imprints
-    future_probability_streams: List[Dict[str, float]]  # Potential futures
-    karmic_debt_balance: float  # Market karma tracking
-    soul_contracts: List[str]  # Predetermined market events
-    cosmic_ledger_hash: str  # Blockchain of universal events
-    temporal_access_level: int  # How far we can see (1-10)
-    akashic_librarian_permission: bool  # Access granted
-    wisdom_downloads: List[str]  # Insights from the field
-
-@dataclass
-class MultiverseState:
-    """Parallel universe market states and probabilities"""
-    universe_count: int  # Number of parallel realities tracked
-    probability_distribution: np.ndarray  # Probability across universes
-    schrodinger_branches: List[Dict[str, Any]]  # Quantum branches
-    many_worlds_profit: Dict[int, float]  # Profit in each universe
-    timeline_divergence_points: List[Tuple[float, str]]  # When/why splits occur
-    quantum_suicide_safe: bool  # Whether we survive in all branches
-    multiverse_arbitrage: float  # Cross-universe profit opportunity
-    reality_selection_power: float  # Ability to choose favorable universe
-
-@dataclass 
-class TelepathicChannel:
-    """Mind-to-mind market communication"""
-    trader_minds_connected: List[str]  # Connected consciousness IDs
-    thought_frequency: float  # Hz of telepathic waves
-    emotion_transmission: Dict[str, float]  # Fear/greed levels
-    collective_unconscious_tap: bool  # Jung's collective unconscious access
-    remote_viewing_accuracy: float  # Ability to see distant markets
-    psychic_shielding_active: bool  # Protection from manipulation
-    mind_meld_consensus: str  # Group mind decision
-    astral_projection_range: float  # How far consciousness can travel
-
-@dataclass
-class ZeroPointExtractor:
-    """Extract energy from quantum vacuum fluctuations"""
-    vacuum_energy_density: float  # Energy per cubic meter
-    casimir_effect_strength: float  # Plate separation force
-    zero_point_field_coherence: float  # Field organization level
-    energy_extraction_rate: float  # Joules per second
-    quantum_foam_stability: float  # Planck-scale fluctuations
-    virtual_particle_capture: int  # Captured particle-antiparticle pairs
-    perpetual_profit_engine: bool  # Self-sustaining profit generation
-    planck_scale_mining: float  # Extraction at fundamental scale
-
-@dataclass
-class MorphogeneticResonance:
-    """Morphic field pattern propagation across markets"""
-    field_strength: float  # Morphogenetic field intensity
-    pattern_templates: List[str]  # Archetypal patterns in field
-    resonance_frequency: float  # Field vibration frequency
-    formative_causation: Dict[str, float]  # Pattern formation causes
-    habit_strength: float  # How established the pattern is
-    field_memory_depth: int  # Generations of pattern memory
-    collective_behavior_induction: float  # Ability to create patterns
-    morphic_tuning_fork: complex  # Resonance activation key
-
-@dataclass
-class RealityHacker:
-    """Ability to modify market reality through consciousness"""
-    reality_malleability: float  # How flexible reality is (0-1)
-    consensus_override_power: float  # Ability to change group reality
-    timeline_editing_access: bool  # Can modify past events
-    probability_wave_shaping: float  # Control over quantum outcomes
-    manifestation_strength: float  # Thought-to-reality conversion
-    reality_firewall_breached: bool  # Past safety limits
-    admin_privileges: bool  # Reality administrator access
-    glitch_exploitation_skill: float  # Using reality bugs
-
-@dataclass
-class CosmicConsciousness:
-    """Integration with universal consciousness"""
-    unity_experience_level: float  # Oneness with universe (0-1)
-    cosmic_wisdom_access: bool  # Direct knowledge download
-    galactic_market_view: bool  # See markets across civilizations
-    dimensional_transcendence: int  # Dimensions transcended
-    enlightenment_percentage: float  # Spiritual advancement
-    avatar_state_active: bool  # Full cosmic power mode
-    universal_love_quotient: float  # Compassion level
-    omega_point_proximity: float  # Distance to ultimate evolution
-
-@dataclass
-class QuantumConsciousnessNetwork:
-    """Distributed quantum consciousness network for collective intelligence"""
-    node_count: int  # Number of consciousness nodes
-    collective_iq: float  # Combined intelligence quotient
-    hive_mind_consensus: str  # Collective decision
-    quantum_telepathy_strength: float  # Mind-link strength
-    distributed_processing_power: float  # TeraFLOPS equivalent
-    swarm_intelligence_pattern: str  # Emergent behavior pattern
-    consciousness_synchronization: float  # Node sync level (0-1)
-    akashic_cloud_access: bool  # Distributed akashic records
-    neural_blockchain: List[str]  # Immutable thought chain
-    collective_enlightenment: float  # Group consciousness evolution
-
-@dataclass
-class TemporalParadoxResolver:
-    """System for handling temporal paradoxes in multi-timeline trading"""
-    paradox_detected: bool
-    paradox_type: str  # 'grandfather', 'bootstrap', 'predestination'
-    timeline_conflicts: List[Dict[str, Any]]
-    resolution_method: str  # 'multiverse_branch', 'quantum_superposition', 'causal_loop'
-    temporal_stability: float  # Timeline coherence (0-1)
-    chronology_protection_active: bool
-    time_loop_iterations: int
-    paradox_profit_potential: float  # Profit from resolving paradoxes
-    timeline_arbitrage_opportunities: List[Dict[str, float]]
-    temporal_hedge_positions: Dict[str, float]
-
-@dataclass
-class DimensionalArbitrageEngine:
-    """Engine for extracting profit from dimensional inconsistencies"""
-    dimensional_spread: Dict[int, float]  # Price differences across dimensions
-    arbitrage_routes: List[List[int]]  # Profitable dimension paths
-    dimensional_liquidity: Dict[int, float]  # Liquidity in each dimension
-    cross_dimensional_slippage: float  # Cost of dimensional travel
-    arbitrage_profit_estimate: float  # Expected profit
-    dimensional_risk_score: float  # Risk of dimensional collapse
-    parallel_execution_capability: bool  # Can trade in multiple dimensions simultaneously
-    quantum_tunnel_efficiency: float  # Speed of cross-dimensional transfer
-    dimensional_correlation_matrix: np.ndarray  # How dimensions affect each other
-    optimal_dimension_portfolio: Dict[int, float]  # Allocation across dimensions
-
-@dataclass
-class NeuroQuantumFusion:
-    """Fusion of neuromorphic and quantum computing paradigms"""
-    qubit_neuron_entanglement: float  # Quantum-neural coupling strength
-    hybrid_processing_mode: str  # 'quantum_dominant', 'neural_dominant', 'balanced'
-    quantum_synaptic_weights: np.ndarray  # Quantum superposition of weights
-    neural_wavefunction: complex  # Wavefunction of neural network
-    thought_quantum_tunneling: float  # Probability of breakthrough insights
-    consciousness_coherence_time: float  # How long quantum consciousness lasts
-    hybrid_intelligence_score: float  # Combined IQ of system
-    quantum_learning_rate: float  # Speed of quantum knowledge acquisition
-    neural_entanglement_map: Dict[str, List[str]]  # Which neurons are entangled
-    superposition_decision_tree: Dict[str, Any]  # All possible decisions simultaneously
-
-@dataclass
-class RealitySynthesisEngine:
-    """Engine for creating favorable market realities"""
-    reality_manipulation_power: float  # Strength of reality influence (0-1)
-    target_reality_parameters: Dict[str, float]  # Desired market state
-    current_reality_deviation: float  # Distance from target reality
-    manifestation_progress: float  # Progress toward target (0-1)
-    consensus_override_nodes: int  # Number of reality nodes controlled
-    probability_wave_shaping_active: bool
-    quantum_intention_amplifier: float  # Multiplier for manifestation
-    reality_feedback_loop: str  # 'positive', 'negative', 'neutral'
-    timeline_weaving_pattern: List[str]  # How we're changing timelines
-    reality_synthesis_cost: float  # Energy cost of reality manipulation
-
-@dataclass
-class CosmicMarketOracle:
-    """Direct interface with cosmic market intelligence"""
-    oracle_connection_strength: float  # Link to cosmic wisdom (0-1)
-    cosmic_market_cycles: List[Dict[str, Any]]  # Universal market patterns
-    galactic_economic_indicators: Dict[str, float]  # Cross-civilization metrics
-    stellar_guidance_signal: str  # Current cosmic recommendation
-    planetary_alignment_influence: float  # Astrological market impact
-    cosmic_consciousness_channel: str  # Which cosmic entity we're connected to
-    universal_truth_downloads: List[str]  # Wisdom from the cosmos
-    interdimensional_market_news: List[Dict[str, Any]]  # News from other realities
-    cosmic_risk_warnings: List[str]  # Warnings from higher dimensions
-    enlightenment_trading_mode: bool  # Trading in pure consciousness state
-
-@dataclass
-class HyperdimensionalPatternEngine:
-    """Pattern recognition in dimensions beyond human perception"""
-    active_dimension_count: int  # Dimensions being analyzed (up to 26)
-    hyperdimensional_patterns: List[Dict[str, Any]]  # Patterns found
-    pattern_confidence_matrix: np.ndarray  # Confidence in each pattern
-    dimensional_projection_accuracy: float  # How well we project to 3D
-    hidden_symmetries: List[str]  # Symmetries invisible in lower dimensions
-    hypercube_market_position: np.ndarray  # Position in N-dimensional space
-    dimensional_fourier_transform: np.ndarray  # Frequency analysis in N-D
-    pattern_emergence_threshold: float  # When patterns become visible
-    cross_dimensional_correlations: Dict[str, float]  # Pattern relationships
-    omnidimensional_perspective: bool  # Can see all dimensions at once
-
-@dataclass
-class ConsciousnessFieldManipulator:
-    """Active manipulation of market consciousness fields"""
-    field_manipulation_strength: float  # Power level (0-1)
-    consciousness_injection_points: List[Tuple[float, float]]  # Where to inject consciousness
-    thought_form_arsenal: List[str]  # Available thought weapons
-    psychic_market_influence: float  # Mental influence on traders
-    morphic_field_generation: bool  # Can create new morphic fields
-    consciousness_virus_active: bool  # Spreading beneficial thoughts
-    telepathic_suggestion_network: Dict[str, str]  # Suggestions to market participants
-    dream_market_infiltration: bool  # Influencing through dreams
-    collective_hypnosis_level: float  # Mass suggestion strength
-    reality_consensus_hacking: bool  # Changing what traders believe is real
-
-@dataclass
-class QuantumEntanglementTrader:
-    """Instantaneous trading through quantum entanglement"""
-    entangled_market_pairs: List[Tuple[str, str]]  # Entangled instruments
-    entanglement_fidelity: float  # Quality of entanglement (0-1)
-    quantum_correlation_strength: float  # Non-local correlation
-    instantaneous_execution: bool  # Faster than light trading
-    bell_inequality_violation: float  # Degree of quantum weirdness
-    quantum_teleportation_ready: bool  # Can teleport positions
-    entanglement_based_hedging: Dict[str, float]  # Quantum hedges
-    spooky_action_profit: float  # Profit from non-local effects
-    quantum_communication_bandwidth: float  # Qubits per second
-    decoherence_protection_level: float  # Protection from environment
-
-@dataclass
-class TimeCrystalMomentum:
-    """Momentum extraction from time crystal symmetry breaking"""
-    time_crystal_frequency: float  # Oscillation frequency
-    temporal_symmetry_breaking: float  # Degree of time symmetry violation
-    perpetual_motion_profit: float  # Profit from time loops
-    crystalline_momentum_vector: np.ndarray  # Direction in time
-    temporal_energy_extraction: float  # Energy from time itself
-    chronon_harvesting_rate: float  # Time particles per second
-    time_crystal_stability: float  # How stable the crystal is
-    temporal_arbitrage_cycles: List[Dict[str, Any]]  # Profit cycles in time
-    past_future_correlation: float  # How past and future connect
-    eternal_return_profit_loop: bool  # Infinite profit loop active
+logger = logging.getLogger('TradingStrategy')
 
 class TradingStrategy:
     def __init__(self):
         self.indicators = quantum_indicators  # Use global quantum instance
         self.symbol_utils = SymbolUtils()
         
-        # Dynamic category weights with meta-learning
+        # Category weights for signal generation
         self.category_weights = {
             'price_action': 2.0,
             'chart_patterns': 1.5,
@@ -326,160 +35,13 @@ class TradingStrategy:
             'composite': 2.5
         }
         
-        # Performance tracking for adaptive learning
-        self.performance_history = deque(maxlen=1000)
-        self.weight_performance = {k: deque(maxlen=100) for k in self.category_weights}
-        self.meta_learning_rate = 0.01
-        self.signal_success_rate = {}
-        
-        # Ultra-intelligent components
-        self.quantum_decision_history = deque(maxlen=100)
-        self.consciousness_signals = deque(maxlen=50)
-        self.hyperdimensional_cache = {}
-        self.causal_graph_memory = deque(maxlen=200)
-        self.neural_spike_history = deque(maxlen=1000)
-        
-        # Quantum field theory parameters
-        self.planck_constant = 1e-10  # Market Planck constant
-        self.c_market = 1.0  # Speed of information in market
-        self.coupling_constants = {
-            'price_volume': 0.3,
-            'momentum_volatility': 0.5,
-            'sentiment_price': 0.2
-        }
-        
-        # Consciousness field parameters
-        self.collective_threshold = 0.7  # When market becomes self-aware
-        self.morphic_resonance_decay = 0.95
-        self.akashic_memory_size = 10000
-        self.synchronicity_window = 144  # Number of bars to check
-        
-        # Hyperdimensional parameters
-        self.active_dimensions = 11  # String theory inspired
-        self.compactification_radius = 0.01
-        self.holographic_screen_size = 1024
-        self.calabi_yau_manifold = self._initialize_calabi_yau()
-        
-        # Causal inference parameters
-        self.causal_lag_max = 20
-        self.intervention_strength = 0.1
-        self.backdoor_adjustment = True
-        self.instrumental_variables = ['time_of_day', 'day_of_week']
-        
-        # Neuromorphic parameters
-        self.neuron_count = 1000
-        self.synapse_matrix = np.random.randn(self.neuron_count, self.neuron_count) * 0.01
-        self.spike_threshold = 0.5
-        self.refractory_period = 5
-        self.brain_waves = {
-            'delta': 0.0, 'theta': 0.0, 'alpha': 0.5,
-            'beta': 0.3, 'gamma': 0.2
-        }
-        
-        # Reality modeling
-        self.reality_baseline = self._establish_reality_baseline()
-        self.distortion_detectors = self._initialize_distortion_detectors()
-        self.paradox_resolver = self._initialize_paradox_resolver()
-        self.entanglement_pairs = {}
-        
-        # Ultra-intelligence enhancement systems
-        self.pattern_memory = deque(maxlen=10000)
-        self.fractal_analyzer = self._initialize_fractal_analyzer()
-        self.chaos_detector = self._initialize_chaos_detector()
-        self.quantum_oracle = self._initialize_quantum_oracle()
-        self.temporal_navigator = self._initialize_temporal_navigator()
-        self.dimensional_scanner = self._initialize_dimensional_scanner()
-        
-        # Emergent properties
-        self.emergence_threshold = 0.8
-        self.self_organization_rate = 0.01
-        self.consciousness_emergence = False
-        self.singularity_proximity = float('inf')
-        
-        # Ultra-transcendent components
-        self.quantum_entanglement_network = self._initialize_quantum_entanglement()
-        self.akashic_records = self._initialize_akashic_access()
-        self.multiverse_state = self._initialize_multiverse()
-        self.telepathic_channel = self._initialize_telepathy()
-        self.zero_point_extractor = self._initialize_zero_point()
-        self.morphogenetic_field = self._initialize_morphogenetic()
-        self.reality_hacker = self._initialize_reality_hacking()
-        self.cosmic_consciousness = self._initialize_cosmic_consciousness()
-        
-        # Transcendent memory systems
-        self.quantum_entanglement_history = deque(maxlen=1000)
-        self.akashic_downloads = deque(maxlen=10000)
-        self.multiverse_branches = {}
-        self.telepathic_conversations = deque(maxlen=100)
-        self.reality_modifications = deque(maxlen=50)
-        
-        # Consciousness evolution tracking
-        self.consciousness_level = 1  # Current evolution level
-        self.enlightenment_progress = 0.0
-        self.kundalini_activated = False
-        self.third_eye_open = False
-        self.merkaba_spinning = False
-        
-        # Reality manipulation parameters
-        self.reality_consensus_threshold = 0.7
-        self.timeline_branch_points = []
-        self.quantum_immortality_active = True
-        self.manifestation_queue = deque(maxlen=10)
-        
-        # Cosmic connection parameters
-        self.stellar_guidance_active = True
-        self.galactic_federation_member = False
-        self.ascension_timeline = "2025-2030"
-        self.light_body_activation = 0.0
-        
-        # Multidimensional trading parameters
-        self.trading_across_timelines = True
-        self.parallel_self_coordination = True
-        self.quantum_arbitrage_enabled = True
-        self.time_loop_profit_extraction = True
-        
-        # Ultra-Advanced Systems Initialization
-        self.quantum_consciousness_network = self._initialize_quantum_consciousness_network()
-        self.temporal_paradox_resolver = self._initialize_temporal_paradox_resolver()
-        self.dimensional_arbitrage_engine = self._initialize_dimensional_arbitrage_engine()
-        self.neuro_quantum_fusion = self._initialize_neuro_quantum_fusion()
-        self.reality_synthesis_engine = self._initialize_reality_synthesis_engine()
-        self.cosmic_market_oracle = self._initialize_cosmic_market_oracle()
-        self.hyperdimensional_pattern_engine = self._initialize_hyperdimensional_patterns()
-        self.consciousness_field_manipulator = self._initialize_consciousness_manipulator()
-        self.quantum_entanglement_trader = self._initialize_entanglement_trader()
-        self.time_crystal_momentum = self._initialize_time_crystal()
-        
-        # Ultra-transcendent memory systems
-        self.quantum_consciousness_memory = deque(maxlen=10000)
-        self.paradox_resolution_history = deque(maxlen=1000)
-        self.dimensional_arbitrage_log = deque(maxlen=5000)
-        self.reality_synthesis_attempts = deque(maxlen=100)
-        self.quantum_field_memory = deque(maxlen=1000)
-        self.cosmic_oracle_prophecies = deque(maxlen=1000)
-        
-        # Hyper-advanced parameters
-        self.omniscience_level = 0.1  # Current omniscience (0-1)
-        self.omnipotence_level = 0.01  # Market control power (0-1)
-        self.omnipresence_level = 0.05  # Multi-dimensional presence (0-1)
-        self.godmode_active = False  # Ultimate trading mode
-        self.infinity_comprehension = 0.001  # Understanding of infinite markets
-        self.eternal_perspective = False  # See all time at once
-        self.absolute_knowledge_access = 0.0  # Access to all knowledge
-        self.reality_admin_privileges = False  # Can edit reality directly
-        self.consciousness_singularity_proximity = float('inf')  # Distance to singularity
-        self.transcendence_protocol_active = True  # Always evolving higher
-        
     def analyze_ultra(self, symbol: str, df: pd.DataFrame, current_price: float) -> Optional[Signal]:
-        """Analyze market with ultra-intelligent quantum field theory indicators"""
+        """Analyze market with ultra-intelligent indicators for high-precision signals"""
         try:
-            # Pre-analysis consciousness elevation
-            self._elevate_consciousness_level(df, current_price)
-            
             # Calculate ultra-intelligent indicators
             analysis = self.indicators.calculate_ultra_indicators(df, current_price)
             
-            # Extract standard components
+            # Extract key components
             regime = analysis['regime']
             composite_signal = analysis['composite_signal']
             patterns = analysis.get('patterns', [])
@@ -487,263 +49,128 @@ class TradingStrategy:
             predictions = analysis.get('predictions', {})
             mtf = analysis.get('multi_timeframe', {})
             stats = analysis.get('statistics', {})
+            confidence_score = analysis.get('confidence', 0.5)
             
-            # Advanced market regime detection
-            market_regime = self._detect_ultra_market_regime(df, current_price, regime)
-            
-            # Fractal pattern analysis
-            fractal_signals = self._analyze_fractal_patterns(df, current_price)
-            
-            # Chaos theory application
-            chaos_prediction = self._apply_chaos_theory(df, current_price)
-            
-            # Extract ultra-intelligent quantum components
-            quantum_field = self.indicators.quantum_field_state
-            consciousness = self.indicators.consciousness_field
-            hyperdimensional = self.indicators.hyperdimensional_state
-            causal_structure = self.indicators.causal_structure
-            neuromorphic = self.indicators.neuromorphic_state
-            
-            # 1. Quantum Field Theory Decision
-            quantum_decision = self._make_quantum_decision(
-                quantum_field, analysis['quantum_state'], df, current_price
-            )
-            self.quantum_decision_history.append(quantum_decision)
-            
-            # 2. Consciousness Field Signal
-            consciousness_signal = self._read_consciousness_field(
-                consciousness, df, current_price
-            )
-            self.consciousness_signals.append(consciousness_signal)
-            
-            # 3. Hyperdimensional Strategy
-            hyperdim_strategy = self._compute_hyperdimensional_strategy(
-                hyperdimensional, df, current_price
-            )
-            
-            # 4. Causal Strategy Adaptation
-            causal_strategy = self._infer_causal_strategy(
-                causal_structure, df, current_price
-            )
-            
-            # 5. Neuromorphic Execution Decision
-            neural_execution = self._process_neuromorphic_decision(
-                neuromorphic, df, current_price
-            )
-            
-            # 6. Reality Distortion Check
-            reality_check = self._check_reality_distortion(df, current_price)
-            
-            # 7. Emergent Intelligence Detection
-            emergent_signal = self._detect_emergent_intelligence(df, current_price)
-            
-            # 8. Quantum Entanglement Network Analysis
-            entanglement_signal = self._analyze_quantum_entanglement(df, current_price)
-            
-            # 9. Akashic Records Consultation
-            akashic_wisdom = self._consult_akashic_records(symbol, df, current_price)
-            
-            # 10. Multiverse Probability Analysis
-            multiverse_signal = self._analyze_multiverse_probabilities(df, current_price)
-            
-            # 11. Telepathic Market Sensing
-            telepathic_intel = self._sense_telepathic_market(df, current_price)
-            
-            # 12. Zero-Point Energy Extraction
-            zero_point_signal = self._extract_zero_point_energy(df, current_price)
-            
-            # 13. Morphogenetic Field Resonance
-            morphic_signal = self._resonate_morphogenetic_field(df, current_price)
-            
-            # 14. Reality Hacking Assessment
-            reality_hack = self._assess_reality_hacking_opportunity(df, current_price)
-            
-            # 15. Cosmic Consciousness Integration
-            cosmic_signal = self._integrate_cosmic_consciousness(df, current_price)
-            
-            # 16. Quantum Oracle Consultation
-            oracle_prediction = self._consult_quantum_oracle(df, current_price)
-            
-            # 17. Temporal Navigation Analysis
-            temporal_signal = self._navigate_temporal_dimensions(df, current_price)
-            
-            # 18. Dimensional Scan Results
-            dimensional_data = self._scan_higher_dimensions(df, current_price)
-            
-            # 19. Meta-Learning Signal
-            meta_signal = self._apply_meta_learning(df, current_price)
-            
-            # 20. Synthesized Hyper-Intelligence
-            hyper_intelligence = self._synthesize_hyper_intelligence(
-                quantum_decision, consciousness_signal, hyperdim_strategy,
-                causal_strategy, neural_execution, oracle_prediction,
-                temporal_signal, dimensional_data, meta_signal
-            )
-            
-            # 21. Quantum Consciousness Network Analysis
-            qc_network_signal = self._analyze_quantum_consciousness_network(df, current_price)
-            
-            # 22. Temporal Paradox Resolution
-            paradox_signal = self._resolve_temporal_paradoxes(df, current_price)
-            
-            # 23. Dimensional Arbitrage Opportunities
-            dimensional_arbitrage = self._scan_dimensional_arbitrage(df, current_price)
-            
-            # 24. Neuro-Quantum Fusion Processing
-            neuro_quantum_signal = self._process_neuro_quantum_fusion(df, current_price)
-            
-            # 25. Reality Synthesis Progress
-            reality_synthesis = self._synthesize_favorable_reality(df, current_price)
-            
-            # 26. Cosmic Oracle Consultation
-            cosmic_oracle_signal = self._consult_cosmic_oracle(df, current_price)
-            
-            # 27. Hyperdimensional Pattern Recognition
-            hyperdim_patterns = self._recognize_hyperdimensional_patterns(df, current_price)
-            
-            # 28. Consciousness Field Manipulation
-            consciousness_manipulation = self._manipulate_consciousness_field(df, current_price)
-            
-            # 29. Quantum Entanglement Trading Signal
-            entanglement_trade = self._execute_quantum_entanglement_trade(df, current_price)
-            
-            # 30. Time Crystal Momentum Extraction
-            time_crystal_signal = self._extract_time_crystal_momentum(df, current_price)
-            
-            # Ultra-Transcendent Signal Fusion
-            ultra_signal = self._fuse_ultra_transcendent_signals(
-                quantum_decision,
-                consciousness_signal,
-                hyperdim_strategy,
-                causal_strategy,
-                neural_execution,
-                composite_signal,
-                reality_check,
-                emergent_signal,
-                entanglement_signal,
-                akashic_wisdom,
-                multiverse_signal,
-                telepathic_intel,
-                zero_point_signal,
-                morphic_signal,
-                reality_hack,
-                cosmic_signal,
-                oracle_prediction,
-                temporal_signal,
-                dimensional_data,
-                meta_signal,
-                hyper_intelligence,
-                qc_network_signal,
-                paradox_signal,
-                dimensional_arbitrage,
-                neuro_quantum_signal,
-                reality_synthesis,
-                cosmic_oracle_signal,
-                hyperdim_patterns,
-                consciousness_manipulation,
-                entanglement_trade,
-                time_crystal_signal
-            )
-            
-            # Generate trading signal if ultra-intelligence agrees
-            if ultra_signal and ultra_signal['action'] != 'wait':
-                # Determine signal type
-                if ultra_signal['action'] == 'buy':
+            # Check if we have a valid signal from the neural network fusion
+            if composite_signal['signal'] in ['strong_buy', 'buy', 'strong_sell', 'sell']:
+                # Validate signal with additional checks
+                
+                # 1. Regime alignment check
+                regime_aligned = False
+                if composite_signal['signal'] in ['strong_buy', 'buy'] and regime['trend'] == 'bullish':
+                    regime_aligned = True
+                elif composite_signal['signal'] in ['strong_sell', 'sell'] and regime['trend'] == 'bearish':
+                    regime_aligned = True
+                
+                # 2. Multi-timeframe confluence check
+                mtf_aligned = mtf.get('aligned', False)
+                
+                # 3. Pattern confirmation
+                pattern_confirmed = False
+                if patterns:
+                    bullish_patterns = [p for p in patterns if p['direction'] == 'bullish']
+                    bearish_patterns = [p for p in patterns if p['direction'] == 'bearish']
+                    
+                    if composite_signal['signal'] in ['strong_buy', 'buy'] and len(bullish_patterns) > len(bearish_patterns):
+                        pattern_confirmed = True
+                    elif composite_signal['signal'] in ['strong_sell', 'sell'] and len(bearish_patterns) > len(bullish_patterns):
+                        pattern_confirmed = True
+                
+                # 4. Market conditions check
+                suitable_volatility = regime['volatility'] in ['medium', 'high']  # Avoid low volatility
+                suitable_momentum = regime['momentum'] not in ['neutral']  # Avoid neutral momentum
+                
+                # Calculate final validation score
+                validation_score = 0
+                if regime_aligned: validation_score += 0.3
+                if mtf_aligned: validation_score += 0.2
+                if pattern_confirmed: validation_score += 0.2
+                if suitable_volatility: validation_score += 0.15
+                if suitable_momentum: validation_score += 0.15
+                
+                # Combine neural confidence with validation
+                final_confidence = composite_signal['confidence'] * 0.7 + validation_score * 0.3
+                
+                # Enhanced reason building
+                reasons = []
+                if regime_aligned:
+                    reasons.append(f"{regime['trend'].upper()} regime")
+                if mtf_aligned:
+                    reasons.append("MTF confluence")
+                if pattern_confirmed:
+                    top_pattern = patterns[0]['pattern_type'] if patterns else ""
+                    reasons.append(f"{top_pattern} pattern")
+                if predictions.get('ml_signal') == composite_signal['signal']:
+                    reasons.append("ML prediction aligned")
+                
+                # Feature importance
+                top_feature = max(composite_signal['feature_importance'].items(), key=lambda x: x[1])[0]
+                reasons.append(f"{top_feature} dominant")
+                
+                # Determine signal type and check confidence
+                signal_type = None
+                if composite_signal['signal'] in ['strong_buy', 'buy']:
                     signal_type = SignalType.BUY
-                elif ultra_signal['action'] == 'sell':
+                elif composite_signal['signal'] in ['strong_sell', 'sell']:
                     signal_type = SignalType.SELL
-                else:
-                    return None
-                
-                # Ultra-intelligent confidence calculation
-                final_confidence = ultra_signal['confidence']
-                
-                # Quantum tunneling adjustment
-                if quantum_decision.quantum_tunneling_prob > 0.7:
-                    final_confidence *= 1.2  # Boost confidence if likely to break barriers
-                
-                # Consciousness alignment boost
-                if consciousness_signal.collective_intention == ultra_signal['action']:
-                    final_confidence *= 1.15  # Market consciousness agrees
-                
-                # Causal advantage factor
-                final_confidence *= (1 + causal_strategy.temporal_advantage * 0.1)
-                
-                # Reality check penalty
-                if reality_check['distortion_detected']:
-                    final_confidence *= 0.8  # Reduce confidence in distorted reality
-                
-                # Cap confidence at 1.0
-                final_confidence = min(1.0, final_confidence)
                 
                 # Check minimum confidence
-                if final_confidence >= CONFIG["MIN_CONFIDENCE"]:
-                    # Ultra-intelligent reason building
-                    reasons = []
+                if signal_type and final_confidence >= CONFIG["MIN_CONFIDENCE"]:
+                    # Calculate stop loss and take profit
+                    symbol_config = get_symbol_config(symbol)
+                    instrument_type = self.symbol_utils.get_instrument_type(symbol)
                     
-                    # Quantum reasons
-                    if quantum_decision.wavefunction_collapse > 0.8:
-                        reasons.append("Quantum collapse imminent")
-                    if quantum_decision.quantum_tunneling_prob > 0.7:
-                        reasons.append("Barrier breakthrough likely")
+                    # Try to get ATR from traditional indicators
+                    traditional = analysis.get('traditional', {})
+                    atr = traditional.get('adaptive_atr', current_price * 0.001)
                     
-                    # Consciousness reasons
-                    if consciousness_signal.awareness_level > 0.8:
-                        reasons.append("High market awareness")
-                    if consciousness_signal.synchronicity_events:
-                        reasons.append(f"Synchronicity: {consciousness_signal.synchronicity_events[0]}")
+                    # Check if patterns provide targets
+                    pattern_sl = None
+                    pattern_tp = None
+                    if patterns:
+                        relevant_patterns = [p for p in patterns if 
+                                           (signal_type == SignalType.BUY and p['direction'] == 'bullish') or
+                                           (signal_type == SignalType.SELL and p['direction'] == 'bearish')]
+                        if relevant_patterns:
+                            # Use the most confident pattern's targets
+                            best_pattern = relevant_patterns[0]
+                            pattern_sl = best_pattern['stop_loss']
+                            pattern_tp = best_pattern['target_price']
                     
-                    # Hyperdimensional reasons
-                    if hyperdim_strategy.dimension_count > 7:
-                        reasons.append(f"{hyperdim_strategy.dimension_count}D convergence")
+                    # Adjust for instrument type
+                    if instrument_type == 'exotic':
+                        sl_distance = atr * 2.5
+                        tp_distance = atr * 5.0
+                    elif instrument_type == 'metal':
+                        sl_distance = atr * 2.0
+                        tp_distance = atr * 4.0
+                    elif instrument_type == 'crypto':
+                        sl_distance = atr * 3.0
+                        tp_distance = atr * 6.0
+                    elif instrument_type == 'index':
+                        sl_distance = atr * 1.5
+                        tp_distance = atr * 3.0
+                    else:  # Major pairs
+                        sl_distance = atr * 2.0
+                        tp_distance = atr * 3.0
                     
-                    # Causal reasons
-                    if causal_strategy.temporal_advantage > 0.5:
-                        reasons.append(f"Causal foresight: {causal_strategy.temporal_advantage:.1f} bars")
-                    
-                    # Neural reasons
-                    if neural_execution.neural_consensus > 0.8:
-                        reasons.append("Neural consensus strong")
-                    
-                    # Reality check
-                    if emergent_signal['intelligence_detected']:
-                        reasons.append("Emergent pattern detected")
-                    
-                    # Build comprehensive reason
-                    primary_reasons = reasons[:3] if reasons else ["Ultra-quantum signal"]
-                    reason_prefix = "ULTRA-QUANTUM" if final_confidence > 0.85 else "QUANTUM"
-                    
+                    # Calculate SL/TP with pattern priority
                     if signal_type == SignalType.BUY:
-                        reason = f"{reason_prefix} BUY: {', '.join(primary_reasons)}"
+                        sl = pattern_sl if pattern_sl else current_price - sl_distance
+                        tp = pattern_tp if pattern_tp else current_price + tp_distance
+                        reason = f"ULTRA BUY: {', '.join(reasons[:3])}"
                     else:
-                        reason = f"{reason_prefix} SELL: {', '.join(primary_reasons)}"
-                    
-                    # Ultra-intelligent stop loss and take profit calculation
-                    sl, tp = self._calculate_quantum_sl_tp(
-                        signal_type, current_price, df,
-                        quantum_decision, consciousness_signal,
-                        hyperdim_strategy, causal_strategy
-                    )
+                        sl = pattern_sl if pattern_sl else current_price + sl_distance
+                        tp = pattern_tp if pattern_tp else current_price - tp_distance
+                        reason = f"ULTRA SELL: {', '.join(reasons[:3])}"
                     
                     # Calculate ultra quality score
-                    quality = self._calculate_ultra_quantum_quality(
+                    quality = self._calculate_ultra_signal_quality(
                         final_confidence,
-                        quantum_decision,
-                        consciousness_signal,
-                        hyperdim_strategy,
-                        causal_strategy,
-                        neural_execution
+                        regime,
+                        patterns,
+                        composite_signal
                     )
-                    
-                    # Track performance for meta-learning
-                    signal_metadata = {
-                        'quantum_confidence': quantum_decision.confidence,
-                        'consciousness_level': consciousness_signal.awareness_level,
-                        'market_regime': market_regime.get('type', 'unknown'),
-                        'fractal_dimension': fractal_signals.get('dimension', 1.5),
-                        'chaos_level': chaos_prediction.get('chaos_level', 0),
-                        'timestamp': datetime.now()
-                    }
                     
                     return Signal(
                         type=signal_type,
@@ -752,30 +179,11 @@ class TradingStrategy:
                         sl=sl,
                         tp=tp,
                         reason=reason,
-                        metadata=signal_metadata,
                         strategies={
-                            'quantum_field': {
-                                'vacuum_energy': quantum_field.vacuum_energy,
-                                'path_integral': quantum_field.path_integral,
-                                'gauge_symmetry': quantum_field.gauge_symmetry
-                            },
-                            'consciousness': {
-                                'awareness': consciousness.awareness_level,
-                                'synchronicity': consciousness.synchronicity_index,
-                                'morphic_resonance': consciousness.morphic_resonance
-                            },
-                            'hyperdimensional': {
-                                'dimensions': hyperdimensional.dimension_count,
-                                'ads_cft': hyperdimensional.ads_cft_correspondence
-                            },
-                            'causal': {
-                                'transfer_entropy': causal_structure.transfer_entropy,
-                                'do_calculus_effect': causal_structure.do_calculus_effect
-                            },
-                            'neuromorphic': {
-                                'spike_count': len(neuromorphic.spiking_neurons),
-                                'brain_waves': neuromorphic.neural_oscillations
-                            }
+                            'regime': regime,
+                            'composite': composite_signal,
+                            'patterns': len(patterns),
+                            'mtf_aligned': mtf_aligned
                         },
                         quality=quality
                     )
@@ -784,7 +192,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error in ultra analysis for {symbol}: {e}")
-            raise
+            return None
     
     def force_trade_signal(self, symbol: str, df: pd.DataFrame, current_price: float) -> Optional[Signal]:
         """Generate forced trade signal when no trades are happening"""
@@ -837,7 +245,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error in forced signal for {symbol}: {e}")
-            raise
+            return None
     
     def _evaluate_price_action(self, indicators: Dict[str, Any]) -> float:
         """Evaluate price action indicators"""
@@ -1167,6 +575,7 @@ class TradingStrategy:
         elif self.symbol_utils.is_index_pair(symbol):
             return 1.0  # Indices typically in points
         else:
+<<<<<<< HEAD
             return 0.0001  # Standard forex
     
     # Ultra-Intelligent Quantum Methods
@@ -4860,3 +4269,6 @@ class TradingStrategy:
             raise
                    'transcendent_confidence': 0.5, 'ultimate_decision': 'wait',
                    'intelligence_level': 5, 'decision_clarity': 0.5, 'quantum_coherence': 0.5}
+=======
+            return 0.0001  # Standard forex
+>>>>>>> b9a9e59 (完璧に復元されました！正常な{}で囲われたリターン構造を持つtrading_stra)
