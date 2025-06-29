@@ -137,9 +137,7 @@ class UltraTradingEngine:
             if not self._is_trading_hours():
                 return
             
-            # Check for forced trade
-            if self._should_force_trade():
-                self._force_trade()
+            # Forced trading removed - only trade based on indicators
             
             # Analyze symbols for opportunities
             with ThreadPoolExecutor(max_workers=5) as executor:
@@ -192,42 +190,6 @@ class UltraTradingEngine:
         # Trading hours check disabled - trade 24/7
         return True
     
-    def _should_force_trade(self) -> bool:
-        """Check if we should force a trade"""
-        if not self.config["AGGRESSIVE_MODE"]:
-            return False
-        
-        time_since_last = time.time() - self.last_global_trade_time
-        return time_since_last > self.config["FORCE_TRADE_INTERVAL"]
-    
-    def _force_trade(self):
-        """Force a trade on the best opportunity"""
-        logger.info("🔥 Forcing trade due to inactivity")
-        self.force_trade_attempts += 1
-        
-        best_symbol = None
-        best_signal = None
-        best_score = 0
-        
-        for symbol in self.tradable_symbols[:10]:  # Check top 10 symbols
-            df = self.market_data.get_market_data(symbol)
-            if df is None or len(df) < 50:
-                logger.warning(f"Insufficient data for force trade on {symbol}")
-                continue
-            
-            current_price = self.market_data.get_current_price(symbol)
-            if not current_price:
-                logger.warning(f"Cannot get current price for force trade on {symbol}")
-                continue
-            
-            signal = self.strategy.force_trade_signal(symbol, df, current_price)
-            if signal and signal.confidence > best_score:
-                best_symbol = symbol
-                best_signal = signal
-                best_score = signal.confidence
-        
-        if best_symbol and best_signal:
-            self._execute_signal(best_symbol, best_signal)
     
     def _analyze_symbol(self, symbol: str) -> Optional[Signal]:
         """Analyze a symbol for trading opportunities"""
