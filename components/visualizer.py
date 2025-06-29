@@ -214,7 +214,6 @@ class TradingVisualizer:
         
     def display_account(self):
         """Display account information in compact format"""
-        print("💰 ACCOUNT: ", end="")
         if self.display_data.balance > 0:
             print(f"Balance: {self.format_currency(self.display_data.balance)} | "
                   f"Equity: {self.format_currency(self.display_data.equity)} | "
@@ -244,74 +243,6 @@ class TradingVisualizer:
 
     def display_strategy_signals(self):
         None
-        # """Display strategy confidence levels in a compact, single-line format."""
-        # print("\n🎯 STRATEGY SIGNALS (COMPACT VIEW)")
-        # print("-" * 60)
-
-        # if not self.display_data.strategy_signals:
-        #     print("Waiting for signals...")
-        #     return
-
-        # # Sort symbols by confidence for prioritized display
-        # sorted_symbols = sorted(
-        #     self.display_data.strategy_signals.items(),
-        #     key=lambda item: item[1].get('confidence', 0),
-        #     reverse=True
-        # )
-
-        # for symbol, data in sorted_symbols:
-        #     try:
-        #         signal_type = data.get('type', 'NONE')
-        #         confidence = data.get('confidence', 0)
-        #         quality = data.get('quality', 0)
-        #         strategies = data.get('strategies', {})
-        #         reason = data.get('reasons', [""])[0]
-
-        #         if signal_type == "BUY":
-        #             signal_icon, signal_color = "🟢", "\033[92m"
-        #         elif signal_type == "SELL":
-        #             signal_icon, signal_color = "🔴", "\033[91m"
-        #         else:
-        #             signal_icon, signal_color = "⚪", "\033[90m"
-
-        #         # --- Compact Strategy Display Logic ---
-        #         strategy_str = ""
-        #         if strategies:
-        #             # Filter for strategies with a meaningful score
-        #             contributing_strats = {
-        #                 k: v for k, v in strategies.items()
-        #                 if k not in ['final_score', 'confidence', 'quality'] and abs(v) > 0.1
-        #             }
-        #             if contributing_strats:
-        #                 # Sort by absolute score value, descending
-        #                 sorted_strats = sorted(
-        #                     contributing_strats.items(),
-        #                     key=lambda item: abs(item[1]),
-        #                     reverse=True
-        #                 )
-        #                 # Format the top 3 contributing strategies
-        #                 strat_parts = [f"{k[:4]}:{v:.1f}" for k, v in sorted_strats[:3]]
-        #                 strategy_str = f"| Strats: {', '.join(strat_parts)}"
-                
-        #         elif "No clear signal" not in reason:
-        #              strategy_str = f"| {reason}"
-
-
-        #         # Print the single, compact line for each symbol
-        #         print(f"{signal_icon} {signal_color}{symbol:<8}\033[0m {signal_color}{signal_type:<4}\033[0m "
-        #               f"C:{confidence:<5.1%} Q:{quality:<5.1%} {strategy_str}")
-
-        #     except Exception as e:
-        #         print(f"   ❌ Error displaying {symbol}: {str(e)[:40]}...")
-
-        # print("-" * 60)
-        # total_symbols = len(self.display_data.strategy_signals)
-        # buy_count = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'BUY')
-        # sell_count = sum(1 for s in self.display_data.strategy_signals.values() if s.get('type') == 'SELL')
-        # high_conf = sum(1 for s in self.display_data.strategy_signals.values() if s.get('confidence', 0) >= 0.7)
-        # print(f"📊 Summary: {total_symbols} symbols | "
-        #       f"🟢 {buy_count} BUY | 🔴 {sell_count} SELL | "
-        #       f"⭐ {high_conf} High Conf (>70%)")
 
     def display_logs(self):
         """Display the latest log messages efficiently."""

@@ -71,9 +71,7 @@ class UltraTradingEngine:
         if not self.tradable_symbols:
             logger.error("No tradable symbols found")
             return False
-        
-        logger.info(f"🚀 Starting Ultra Trading Engine")
-        logger.info(f"💰 Balance: ¥{self.balance:,.0f}")
+
         logger.info(f"📊 Monitoring {len(self.tradable_symbols)} symbols")
         
         self.running = True
