@@ -25,7 +25,8 @@ CONFIG = {
     "API_BASE": "http://172.28.144.1:8000",
     "REFRESH_RATE": 1,  # seconds
     "ACCOUNT_CURRENCY": "JPY",
-    "LOG_MAX_LINES": 50 # ログ表示領域の最大行数
+    "LOG_MAX_LINES": 8, # ログ表示領域の最大行数
+    "LOG_LEVEL_FILTER": ["ERROR", "WARNING", "INFO"] # 表示するログレベル
 }
 
 @dataclass
@@ -39,16 +40,36 @@ class DisplayData:
     last_update: datetime = None
 
 # ログをdequeに保存するためのカスタムハンドラ
-class DequeHandler(logging.Handler):
-    """A logging handler that stores messages in a deque."""
-    def __init__(self, deque_instance: collections.deque):
+class FilteredDequeHandler(logging.Handler):
+    """A logging handler that stores filtered messages in a deque."""
+    def __init__(self, deque_instance: collections.deque, level_filter: List[str]):
         super().__init__()
         self.deque = deque_instance
+        self.level_filter = set(level_filter)
+        self.last_log_time = time.time()
+        self.log_count = 0
+        self.max_logs_per_second = 10
 
     def emit(self, record: logging.LogRecord):
-        """Format and append the log record to the deque."""
-        log_entry = self.format(record)
-        self.deque.append(log_entry)
+        """Format and append the log record to the deque with filtering."""
+        # Rate limiting
+        current_time = time.time()
+        if current_time - self.last_log_time < 1:
+            self.log_count += 1
+            if self.log_count > self.max_logs_per_second:
+                return
+        else:
+            self.log_count = 0
+            self.last_log_time = current_time
+            
+        # Level filtering
+        if record.levelname in self.level_filter:
+            # Skip repetitive API connection errors
+            log_entry = self.format(record)
+            if "API connection failed" in log_entry and len(self.deque) > 0:
+                if "API connection failed" in list(self.deque)[-1]:
+                    return
+            self.deque.append(log_entry)
 
 
 class TradingVisualizer:
@@ -58,10 +79,11 @@ class TradingVisualizer:
         self.running = False
         self.display_data = DisplayData()
 
-        self.log_messages = collections.deque(maxlen=CONFIG["LOG_MAX_LINES"])
+        self.log_messages = collections.deque(maxlen=CONFIG["LOG_MAX_LINES"] * 2)  # Buffer extra for filtering
         self._configure_logging()
 
         self.display_data.strategy_signals = {}
+        self.cleanup_counter = 0  # For periodic cleanup
 
         if self.data_queue:
             logger.info("Visualizer: Signal queue connected successfully")
@@ -69,15 +91,21 @@ class TradingVisualizer:
             logger.warning("Visualizer: No signal queue provided - signals will not be displayed")
 
     def _configure_logging(self):
-        """Configure the root logger to send all logs to the DequeHandler."""
-        root_logger = logging.getLogger()
-        root_logger.handlers.clear()
-        root_logger.setLevel(logging.INFO)
-
-        deque_handler = DequeHandler(self.log_messages)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', '%H:%M:%S')
+        """Configure selective logging for visualizer display."""
+        # Create filtered handler for display only
+        deque_handler = FilteredDequeHandler(self.log_messages, CONFIG["LOG_LEVEL_FILTER"])
+        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
         deque_handler.setFormatter(formatter)
-        root_logger.addHandler(deque_handler)
+        
+        # Add handler to specific loggers only (avoid root logger and Visualizer to prevent loops)
+        important_loggers = ['UltraTradingEngine', 'OrderManagement', 'MT5APIClient']
+        for logger_name in important_loggers:
+            target_logger = logging.getLogger(logger_name)
+            # Check if our handler is already added to avoid duplicates
+            handler_exists = any(isinstance(h, FilteredDequeHandler) for h in target_logger.handlers)
+            if not handler_exists:
+                target_logger.addHandler(deque_handler)
+            target_logger.propagate = False  # Prevent duplicate logs
 
     def clear_screen(self):
         """Clear terminal screen"""
@@ -118,19 +146,66 @@ class TradingVisualizer:
         self.display_data.positions = self.get_positions()
 
         if self.data_queue:
-            while not self.data_queue.empty():
+            # Process limited number of queue items to prevent memory buildup
+            processed_count = 0
+            max_process_per_cycle = 5
+            
+            while not self.data_queue.empty() and processed_count < max_process_per_cycle:
                 try:
                     signals = self.data_queue.get_nowait()
                     if '_daily_pnl_update' not in signals:
                         for symbol, data in signals.items():
-                            self.display_data.strategy_signals[symbol] = data
+                            # Keep only essential data to reduce memory usage
+                            if isinstance(data, dict):
+                                filtered_data = {
+                                    'type': data.get('type', 'NONE'),
+                                    'confidence': data.get('confidence', 0),
+                                    'timestamp': data.get('timestamp', datetime.now().isoformat())
+                                }
+                                self.display_data.strategy_signals[symbol] = filtered_data
+                    processed_count += 1
                 except queue.Empty:
                     break
                 except Exception as e:
                     logger.error(f"Error processing signal queue: {e}")
                     break
+            
+            # Clean old strategy signals to prevent memory buildup
+            if len(self.display_data.strategy_signals) > 10:
+                # Keep only the 10 most recent signals
+                sorted_signals = sorted(
+                    self.display_data.strategy_signals.items(),
+                    key=lambda x: x[1].get('timestamp', ''),
+                    reverse=True
+                )
+                self.display_data.strategy_signals = dict(sorted_signals[:10])
 
         self.display_data.last_update = datetime.now()
+        
+        # Periodic cleanup every 30 cycles to prevent memory leaks
+        self.cleanup_counter += 1
+        if self.cleanup_counter >= 30:
+            self._periodic_cleanup()
+            self.cleanup_counter = 0
+    
+    def _periodic_cleanup(self):
+        """Perform periodic memory cleanup"""
+        # Clear excessive queue data if any
+        if self.data_queue and self.data_queue.qsize() > 50:
+            # Drain excessive items from queue
+            drained = 0
+            while not self.data_queue.empty() and drained < 30:
+                try:
+                    self.data_queue.get_nowait()
+                    drained += 1
+                except queue.Empty:
+                    break
+            logger.warning(f"Drained {drained} excessive items from signal queue")
+        
+        # Clear old strategy signals
+        if len(self.display_data.strategy_signals) > 5:
+            self.display_data.strategy_signals.clear()
+            logger.info("Cleared old strategy signals for memory management")
 
     def display_header(self):
         # """Display header information"""
@@ -239,12 +314,16 @@ class TradingVisualizer:
         #       f"⭐ {high_conf} High Conf (>70%)")
 
     def display_logs(self):
-        # """Display the latest log messages."""
-        # print("\n" + "--- SYSTEM LOGS " + "-" * 45)
+        """Display the latest log messages efficiently."""
         if not self.log_messages:
-            print("No new log messages.")
+            print("No system logs.")
         else:
-            for msg in list(self.log_messages):
+            # Convert to list once and display
+            recent_logs = list(self.log_messages)
+            for msg in recent_logs[-CONFIG["LOG_MAX_LINES"]:]:  # Show only most recent
+                # Truncate long messages
+                if len(msg) > 80:
+                    msg = msg[:77] + "..."
                 print(msg)
 
 
@@ -266,6 +345,13 @@ class TradingVisualizer:
                 self.display_strategy_signals()
                 self.display_logs()
                 self.display_footer()
+                # Clear old logs periodically to prevent memory buildup
+                if len(self.log_messages) > CONFIG["LOG_MAX_LINES"] * 1.5:
+                    # Keep only recent logs
+                    recent_logs = list(self.log_messages)[-CONFIG["LOG_MAX_LINES"]:]
+                    self.log_messages.clear()
+                    self.log_messages.extend(recent_logs)
+                    
                 time.sleep(CONFIG["REFRESH_RATE"])
 
             except KeyboardInterrupt:
