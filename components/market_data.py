@@ -57,6 +57,10 @@ class MarketData:
                 df['time'] = pd.to_datetime(df['time'])
                 df = df.set_index('time')
                 
+                # Rename tick_volume to volume for indicators compatibility
+                if 'tick_volume' in df.columns:
+                    df['volume'] = df['tick_volume']
+                
                 # Cache the data
                 self.data_cache[cache_key] = (df, time.time())
                 return df

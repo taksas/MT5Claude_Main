@@ -4327,7 +4327,15 @@ class QuantumUltraIntelligentIndicators:
         try:
             # Quantum discord measures non-classical correlations beyond entanglement
             returns = df['close'].pct_change().dropna()
-            volume_norm = (df['volume'] / df['volume'].mean()).iloc[1:]
+            
+            # Handle missing volume gracefully
+            if 'volume' not in df.columns:
+                logger.warning("Volume data not available, using price-based discord calculation")
+                # Use price range as volume proxy
+                volume_proxy = (df['high'] - df['low']).iloc[1:]
+                volume_norm = (volume_proxy / volume_proxy.mean())
+            else:
+                volume_norm = (df['volume'] / df['volume'].mean()).iloc[1:]
             
             # Mutual information
             def mutual_info(x, y):
