@@ -34,12 +34,20 @@ class UltraTradingSystem:
         
     def start(self):
         """Start the trading system"""
-        print("=" * 40)
-        print("         ULTRA TRADING SYSTEM         ")
-        print("=" * 40)
-        print(f"Mode: {self.mode.upper()}")
+        print("=" * 70)
+        print("   ULTRA TRADING SYSTEM - HIGH-PROFIT CONFIGURATION")
+        print("=" * 70)
+        print(f"\nMode: {self.mode.upper()}")
         print(f"Visualizer: {'ENABLED' if self.visualize else 'DISABLED'}")
         print(f"Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("\nHigh-Profit Symbols Active:")
+        
+        print("🔥 HIGH-PROFIT SYMBOLS ACTIVE:")
+        print("- Exotic Currencies: USDTRY, USDZAR, USDMXN")
+        print("- Cross Pairs: GBPJPY, GBPNZD, EURAUD")
+        print("- Metals: XAUUSD, XPDUSD, XPTUSD")
+        print("- Indices: US30, RUSSELL2K, MDAX")
+        print("\nPress Ctrl+C to shutdown\n")
         print("=" * 70)
         
         # Set up signal handlers

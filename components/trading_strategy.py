@@ -3831,9 +3831,6 @@ class TradingStrategy:
                     elif np.real(price_component) < -0.3:
                         pattern_data['pattern_direction'] = 'bearish'
                         pattern_data['hyperdimensional_signal'] = 'sell'
-                    else:
-                        pattern_data['pattern_direction'] = 'neutral'
-                        pattern_data['hyperdimensional_signal'] = 'wait'
                     
                     # Hidden patterns
                     for i, eigenval in enumerate(eigenvalues[:3]):
@@ -3849,6 +3846,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error recognizing hyperdimensional patterns: {e}")
             raise
+                   'hyperdimensional_signal': 'wait'}
     
     def _manipulate_consciousness_field(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Actively manipulate market consciousness field"""
@@ -3905,6 +3903,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error manipulating consciousness field: {e}")
             raise
+                   'telepathic_suggestions_sent': 0}
     
     def _execute_quantum_entanglement_trade(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Execute trades through quantum entanglement"""
@@ -3951,6 +3950,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error executing quantum entanglement trade: {e}")
             raise
+                   'bell_violation': 0}
     
     def _extract_time_crystal_momentum(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Extract momentum from time crystal structures"""
@@ -4008,6 +4008,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error extracting time crystal momentum: {e}")
             raise
+                   'eternal_profit_active': False}
     
     # Enhanced helper methods for ultra-intelligence
     def _elevate_to_godmode(self):
@@ -4159,6 +4160,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error in quantum consciousness network: {e}")
             raise
+                   'collective_decision_confidence': 0.5}
     
     def _resolve_temporal_paradoxes(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Resolve temporal paradoxes in multi-timeline trading"""
@@ -4218,6 +4220,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error resolving temporal paradoxes: {e}")
             raise
+                   'temporal_stability': 1.0}
     
     def _scan_dimensional_arbitrage(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Scan for arbitrage opportunities across dimensions"""
@@ -4306,6 +4309,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error in neuro-quantum fusion: {e}")
             raise
+                   'breakthrough_probability': 0}
     
     def _synthesize_favorable_reality(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Synthesize a favorable market reality"""
@@ -4361,6 +4365,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error synthesizing reality: {e}")
             raise
+                   'consensus_nodes_controlled': 0}
     
     def _consult_cosmic_oracle(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Consult the cosmic oracle for universal market wisdom"""
@@ -4452,6 +4457,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error consulting cosmic oracle: {e}")
             raise
+                   'universal_wisdom': 'Silence is the language of the cosmos'}
     
     def _consult_quantum_oracle(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Consult the quantum oracle for trading guidance"""
@@ -4513,6 +4519,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error consulting quantum oracle: {e}")
             raise
+                   'quantum_advice': 'The quantum field is uncertain'}
     
     def _navigate_temporal_dimensions(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Navigate temporal dimensions for trading signals"""
@@ -4604,6 +4611,8 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error navigating temporal dimensions: {e}")
             raise
+                   'future_echo_strength': 0, 'past_shadow_influence': 0,
+                   'temporal_confidence': 0.5}
     
     def _scan_higher_dimensions(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Scan higher dimensions for trading opportunities"""
@@ -4683,6 +4692,8 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error scanning higher dimensions: {e}")
             raise
+                   'calabi_yau_topology': 'stable', 'hidden_dimension_signal': 0,
+                   'dimensional_confidence': 0.5}
     
     def _apply_meta_learning(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Apply meta-learning to adapt strategy"""
@@ -4748,6 +4759,7 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error applying meta-learning: {e}")
             raise
+                   'meta_confidence': 0.5}
     
     def _synthesize_hyper_intelligence(self, quantum_decision: QuantumDecision,
                                      consciousness_signal: ConsciousnessSignal,
@@ -4846,3 +4858,5 @@ class TradingStrategy:
         except Exception as e:
             logger.error(f"Error synthesizing hyper-intelligence: {e}")
             raise
+                   'transcendent_confidence': 0.5, 'ultimate_decision': 'wait',
+                   'intelligence_level': 5, 'decision_clarity': 0.5, 'quantum_coherence': 0.5}
