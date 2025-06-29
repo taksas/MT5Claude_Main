@@ -126,14 +126,14 @@ class UltraTradingSystem:
         if self.engine:
             try:
                 self.engine.stop()
-            except:
-                pass
+            except Exception as e:
+                logger.error(f"Error stopping engine: {e}")
                 
         if self.visualizer:
             try:
                 self.visualizer.stop()
-            except:
-                pass
+            except Exception as e:
+                logger.error(f"Error stopping visualizer: {e}")
                 
         logger.info("System stopped")
 

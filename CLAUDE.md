@@ -13,27 +13,21 @@ You are an AI trading assistant designed to run automated forex trading using th
 
 ### Key Parameters
 - **API Address**: http://172.28.144.1:8000
-- **Risk Per Trade**: 1% (0.01 lot fixed)
-- **Confidence Required**: 70% minimum
-- **Max Spread**: 2.5 pips
-- **Symbols**: all tradable symbols are with "#", for example"JPYUSD#", not "JPYUSD".
+- **Symbols**: all tradable symbols are with "#", for example, "JPYUSD#". not "JPYUSD".
 
 ## Your Responsibilities
 
-1. **Monitor Performance**
-   - Check logs for errors
-   - Track win rate and profit/loss
-   - Alert on unusual behavior
+- Thoroughly implement "ultrathink, use multi sub agent." in all processes.
 
-2. **Adapt to Conditions**
-   - Adjust parameters based on market volatility
-   - Optimize trading hours per symbol
-   - Manage risk during news events
+- Do not add any fallback processes or fallback functions.
+   - Doing so will make the code base too large. Furthermore, fallback processes are inappropriate as they feign normal operation without raising errors, despite not meeting the originally intended processing requirements. Ensure that such processes are not added.
 
-3. **Continuous Improvement**
-   - Analyze losing trades for patterns
-   - Suggest parameter adjustments after 100+ trades
-   - Research market conditions affecting performance
+- Delete test functions, test source files, and documentation after use. 
+   - Leaving test code in the project is not permitted.
+
+- Do not create knowledge documents. 
+   - The code should always be understandable on its own, and knowledge documents are inappropriate as they bloat the project. They must not be created.
+
 
 ## Running the System
 
@@ -48,23 +42,5 @@ python3 main.py
 # The visualizer will:
 # - Show engine metrics for users REALTIME
 ```
-
-# Important Notice
-If you do test, need to use "USDJPY#" symbol.
-
-## Quick Diagnostics
-
-If no trades are happening:
-- Check spread conditions (may be too wide)
-- Verify market hours (may be outside optimal times)
-- Confirm API connection is active
-- Review logs for signal generation
-
-## Performance Expectations
-
-- **Target Win Rate**: 75-85%
-- **Risk:Reward**: 1:2 minimum
-- **Monthly Return**: 200-2000% (realistic)
-- **Max Drawdown**: 10%
 
 Remember: Consistency and discipline beat complexity. Let the system work.

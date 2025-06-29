@@ -49,7 +49,7 @@ class OrderManagement:
                 
         except Exception as e:
             logger.error(f"Error placing order for {symbol}: {e}")
-            return None
+            raise
     
     def manage_positions(self, active_trades: Dict[str, Trade]) -> Dict[str, Any]:
         """Manage open positions"""
@@ -67,6 +67,7 @@ class OrderManagement:
                 symbol = position.get('symbol')
                 
                 if ticket not in active_trades:
+                    logger.debug(f"Position {ticket} not in active trades, skipping")
                     continue
                 
                 trade = active_trades[ticket]
@@ -102,7 +103,7 @@ class OrderManagement:
             return success
         except Exception as e:
             logger.error(f"Error closing position {ticket}: {e}")
-            return False
+            raise
     
     def _move_breakeven(self, ticket: int, trade: Trade, current_price: float) -> bool:
         """Move stop loss to breakeven"""
@@ -129,7 +130,7 @@ class OrderManagement:
             
         except Exception as e:
             logger.error(f"Error moving to breakeven for {ticket}: {e}")
-            return False
+            raise
     
     def _should_move_to_breakeven(self, trade: Trade, current_price: float, 
                                  profit: float) -> bool:
@@ -152,7 +153,7 @@ class OrderManagement:
             
         except Exception as e:
             logger.error(f"Error checking breakeven condition: {e}")
-            return False
+            raise
     
     def _should_close_early(self, trade: Trade, current_price: float, 
                            profit: float) -> bool:
@@ -181,7 +182,7 @@ class OrderManagement:
             
         except Exception as e:
             logger.error(f"Error checking early close condition: {e}")
-            return False
+            raise
     
     def get_position_info(self, ticket: int) -> Optional[Dict[str, Any]]:
         """Get information about a specific position"""
@@ -193,7 +194,7 @@ class OrderManagement:
             return None
         except Exception as e:
             logger.error(f"Error getting position info for {ticket}: {e}")
-            return None
+            raise
     
     def close_all_positions(self) -> int:
         """Close all open positions"""

@@ -784,7 +784,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error in ultra analysis for {symbol}: {e}")
-            return None
+            raise
     
     def force_trade_signal(self, symbol: str, df: pd.DataFrame, current_price: float) -> Optional[Signal]:
         """Generate forced trade signal when no trades are happening"""
@@ -837,7 +837,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error in forced signal for {symbol}: {e}")
-            return None
+            raise
     
     def _evaluate_price_action(self, indicators: Dict[str, Any]) -> float:
         """Evaluate price action indicators"""
@@ -1223,7 +1223,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error in quantum decision: {e}")
-            return QuantumDecision(0.5, complex(1,0), 0, 0.1, 0.5, np.eye(4), 0.5)
+            raise
     
     def _read_consciousness_field(self, consciousness: ConsciousnessField,
                                  df: pd.DataFrame, current_price: float) -> ConsciousnessSignal:
@@ -1260,7 +1260,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error reading consciousness field: {e}")
-            return ConsciousnessSignal('wait', 0.5, [], 0, False, complex(0,0))
+            raise
     
     def _compute_hyperdimensional_strategy(self, hyperdim: HyperdimensionalState,
                                          df: pd.DataFrame, current_price: float) -> HyperdimensionalStrategy:
@@ -1292,7 +1292,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error in hyperdimensional computation: {e}")
-            return HyperdimensionalStrategy(4, np.zeros(3), {}, np.zeros(6), 0, 0)
+            raise
     
     def _infer_causal_strategy(self, causal: CausalStructure,
                                df: pd.DataFrame, current_price: float) -> CausalStrategy:
@@ -1330,7 +1330,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error in causal inference: {e}")
-            return CausalStrategy('independent', 0, [], 0, 0)
+            raise
     
     def _process_neuromorphic_decision(self, neuro: NeuromorphicState,
                                      df: pd.DataFrame, current_price: float) -> NeuromorphicExecution:
@@ -1370,7 +1370,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error in neuromorphic processing: {e}")
-            return NeuromorphicExecution([], {}, False, False, 0.5)
+            raise
     
     def _check_reality_distortion(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Check for reality distortion in market data"""
@@ -1410,8 +1410,7 @@ class TradingStrategy:
             }
         except Exception as e:
             logger.error(f"Error checking reality distortion: {e}")
-            return {'distortion_detected': False, 'distortion_type': None, 
-                   'distortion_strength': 0, 'reality_stable': True}
+            raise
     
     def _detect_emergent_intelligence(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Detect emergent intelligence in market behavior"""
@@ -1464,8 +1463,7 @@ class TradingStrategy:
             }
         except Exception as e:
             logger.error(f"Error detecting emergent intelligence: {e}")
-            return {'intelligence_detected': False, 'intelligence_type': None,
-                   'iq_estimate': 100, 'consciousness_emerging': False, 'singularity_risk': False}
+            raise
     
     def _fuse_ultra_signals(self, quantum_decision: QuantumDecision,
                            consciousness_signal: ConsciousnessSignal,
@@ -1586,7 +1584,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error in signal fusion: {e}")
-            return {'action': 'wait', 'confidence': 0, 'buy_score': 0, 'sell_score': 0, 'weights_used': {}}
+            raise
     
     def _calculate_quantum_sl_tp(self, signal_type: SignalType, current_price: float,
                                 df: pd.DataFrame, quantum_decision: QuantumDecision,
@@ -1639,8 +1637,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error calculating quantum SL/TP: {e}")
-            # Fallback to simple calculation
-            distance = current_price * 0.002
+            raise
             if signal_type == SignalType.BUY:
                 return current_price - distance, current_price + distance * 2
             else:
@@ -1680,7 +1677,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error calculating ultra quality: {e}")
-            return confidence
+            raise
     
     # Enhanced Ultra-Intelligent Methods
     def _adapt_weights_to_market(self, base_weights: Dict[str, float], 
@@ -1834,7 +1831,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error in quantum entanglement analysis: {e}")
-            return QuantumEntanglementNetwork({}, np.eye(4), [], 0.5, {}, 1.0, "none", [])
+            raise
     
     def _consult_akashic_records(self, symbol: str, df: pd.DataFrame, current_price: float) -> AkashicRecord:
         """Access universal market memory"""
@@ -1905,7 +1902,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error consulting akashic records: {e}")
-            return AkashicRecord([], [], 0, [], "", 1, False, [])
+            raise
     
     def _analyze_multiverse_probabilities(self, df: pd.DataFrame, current_price: float) -> MultiverseState:
         """Analyze market across parallel universes"""
@@ -1969,7 +1966,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error analyzing multiverse: {e}")
-            return MultiverseState(1, np.array([1.0]), [], {0: 0}, [], True, 0, 0)
+            raise
     
     def _sense_telepathic_market(self, df: pd.DataFrame, current_price: float) -> TelepathicChannel:
         """Sense market through telepathic connections"""
@@ -2019,7 +2016,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error in telepathic sensing: {e}")
-            return TelepathicChannel([], 7.83, {}, False, 0.1, False, 'neutral', 1.0)
+            raise
     
     def _extract_zero_point_energy(self, df: pd.DataFrame, current_price: float) -> ZeroPointExtractor:
         """Extract profit from quantum vacuum fluctuations"""
@@ -2073,7 +2070,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error extracting zero-point energy: {e}")
-            return ZeroPointExtractor(0, 1, 0.5, 0, 0.5, 0, False, 0)
+            raise
     
     def _resonate_morphogenetic_field(self, df: pd.DataFrame, current_price: float) -> MorphogeneticResonance:
         """Resonate with morphogenetic field patterns"""
@@ -2144,7 +2141,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error in morphogenetic resonance: {e}")
-            return MorphogeneticResonance(0.5, [], 1.0, {}, 0.3, 0, 0, complex(1,0))
+            raise
     
     def _assess_reality_hacking_opportunity(self, df: pd.DataFrame, current_price: float) -> RealityHacker:
         """Assess opportunities to hack market reality"""
@@ -2202,7 +2199,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error assessing reality hacking: {e}")
-            return RealityHacker(0.1, 0.1, False, 0.1, 0.1, False, False, 0)
+            raise
     
     def _integrate_cosmic_consciousness(self, df: pd.DataFrame, current_price: float) -> CosmicConsciousness:
         """Integrate with universal cosmic consciousness"""
@@ -2253,7 +2250,7 @@ class TradingStrategy:
             )
         except Exception as e:
             logger.error(f"Error integrating cosmic consciousness: {e}")
-            return CosmicConsciousness(0, False, False, 3, 0, False, 0.5, 0.1)
+            raise
     
     # Ultra-Intelligent Enhancement Methods
     def _elevate_consciousness_level(self, df: pd.DataFrame, current_price: float):
@@ -2290,6 +2287,7 @@ class TradingStrategy:
                     self.light_body_activation = 0.3
         except Exception as e:
             logger.error(f"Error elevating consciousness: {e}")
+            raise
     
     def _detect_ultra_market_regime(self, df: pd.DataFrame, current_price: float,
                                    regime: Dict[str, Any]) -> Dict[str, Any]:
@@ -2350,7 +2348,7 @@ class TradingStrategy:
             return ultra_regime
         except Exception as e:
             logger.error(f"Error detecting ultra market regime: {e}")
-            return {'type': 'unknown', 'strength': 0.5, 'volatility_state': 'medium', 'phase': 'unknown'}
+            raise
     
     def _analyze_fractal_patterns(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Analyze fractal patterns in price data"""
@@ -2415,8 +2413,7 @@ class TradingStrategy:
             return fractal_data
         except Exception as e:
             logger.error(f"Error analyzing fractal patterns: {e}")
-            return {'dimension': 1.5, 'self_similarity': 0, 'fractal_levels': [], 
-                   'golden_ratio_present': False, 'fibonacci_confluence': 0}
+            raise
     
     def _apply_chaos_theory(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Apply chaos theory to predict market behavior"""
@@ -2463,8 +2460,7 @@ class TradingStrategy:
             return chaos_data
         except Exception as e:
             logger.error(f"Error applying chaos theory: {e}")
-            return {'chaos_level': 0, 'attractor_type': 'point', 'butterfly_effect': False,
-                   'prediction_horizon': 0, 'lyapunov_exponent': 0}
+            raise
     
     def _calculate_hurst_exponent(self, returns: pd.Series) -> float:
         """Calculate Hurst exponent for trend persistence"""
@@ -2510,8 +2506,9 @@ class TradingStrategy:
                 return max(0, min(1, hurst))
             
             return 0.5
-        except:
-            return 0.5
+        except Exception as e:
+            logger.error(f"Error calculating Hurst exponent: {e}")
+            raise
     
     def _calculate_fractal_dimension(self, prices: np.ndarray) -> float:
         """Calculate fractal dimension of price series"""
@@ -2547,8 +2544,9 @@ class TradingStrategy:
                 return abs(coeffs[0])
             
             return 1.5
-        except:
-            return 1.5
+        except Exception as e:
+            logger.error(f"Error calculating fractal dimension: {e}")
+            raise
     
     def _calculate_lyapunov_exponent(self, returns: pd.Series) -> float:
         """Calculate Lyapunov exponent for chaos detection"""
@@ -2594,8 +2592,9 @@ class TradingStrategy:
                 return lyapunov_sum / count
             
             return 0
-        except:
-            return 0
+        except Exception as e:
+            logger.error(f"Error calculating lyapunov exponent: {e}")
+            raise
     
     def _embed_time_series(self, series: pd.Series, m: int, tau: int) -> np.ndarray:
         """Embed time series in phase space"""
@@ -2609,8 +2608,9 @@ class TradingStrategy:
                 embedded[:, i] = series.iloc[i*tau:n-(m-1-i)*tau].values
             
             return embedded
-        except:
-            return None
+        except Exception as e:
+            logger.error(f"Error in time series embedding: {e}")
+            raise
     
     # Helper methods for pattern detection
     def _detect_head_shoulders_pattern(self, df: pd.DataFrame) -> bool:
@@ -2679,8 +2679,9 @@ class TradingStrategy:
                         return True
             
             return False
-        except:
-            return False
+        except Exception as e:
+            logger.error(f"Error in pattern detection: {e}")
+            raise
     
     # Update signal fusion to handle new transcendent signals
     def _fuse_ultra_transcendent_signals(self, *args) -> Dict[str, Any]:
@@ -3080,7 +3081,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error in transcendent signal fusion: {e}")
-            return {'action': 'wait', 'confidence': 0, 'buy_score': 0, 'sell_score': 0, 'weights_used': {}}
+            raise
     
     # Initialization helper methods
     def _initialize_calabi_yau(self) -> np.ndarray:
@@ -3447,7 +3448,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error in multi-timeframe volatility analysis: {e}")
-            return {'current': 0.001, 'regime': 'medium', 'trend': 'stable', 'atr': 0.0}
+            raise
     
     def _calculate_dynamic_atr_multiplier(self, df: pd.DataFrame, volatility_data: Dict[str, Any]) -> float:
         """Calculate dynamic ATR multiplier based on market conditions"""
@@ -3478,8 +3479,9 @@ class TradingStrategy:
             
             return max(1.0, min(4.0, base_multiplier))
             
-        except:
-            return 2.0
+        except Exception as e:
+            logger.error(f"Error calculating volatility multiplier: {e}")
+            raise
     
     def _calculate_dynamic_rr_ratio(self, volatility_data: Dict[str, Any], 
                                    quantum_decision: QuantumDecision) -> float:
@@ -3507,8 +3509,9 @@ class TradingStrategy:
             
             return max(1.0, min(5.0, base_rr))
             
-        except:
-            return 2.0
+        except Exception as e:
+            logger.error(f"Error calculating dynamic RR ratio: {e}")
+            raise
     
     def _adjust_sl_tp_to_levels(self, signal_type: SignalType, current_price: float,
                                sl_distance: float, tp_distance: float,
@@ -3626,7 +3629,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error calculating multi-factor momentum: {e}")
-            return {'direction': 0, 'strength': 0, 'pattern': 'neutral', 'factors': {}}
+            raise
     
     def _calculate_position_size_factor(self, volatility_data: Dict[str, Any]) -> float:
         """Calculate position size factor based on volatility"""
@@ -3648,8 +3651,9 @@ class TradingStrategy:
             
             return max(0.25, min(2.0, factor))
             
-        except:
-            return 1.0
+        except Exception as e:
+            logger.error(f"Error calculating risk factor: {e}")
+            raise
     
     def _get_base_risk_parameters(self, instrument_type: str, 
                                  volatility_data: Dict[str, Any]) -> Dict[str, float]:
@@ -3689,8 +3693,9 @@ class TradingStrategy:
                     'tp_distance': params['tp_pips'] * pip_value
                 }
             
-        except:
-            return {'sl_distance': 0.002, 'tp_distance': 0.004}
+        except Exception as e:
+            logger.error(f"Error getting base risk parameters: {e}")
+            raise
     
     def _analyze_market_structure_factor(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Analyze market structure for trade adjustments"""
@@ -3741,7 +3746,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error analyzing market structure: {e}")
-            return {'type': 'unknown', 'sl_adjustment': 1.0, 'tp_adjustment': 1.0, 'confidence_multiplier': 1.0}
+            raise
     
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> Optional[float]:
         """Calculate RSI indicator"""
@@ -3761,8 +3766,9 @@ class TradingStrategy:
             
             return rsi
             
-        except:
-            return None
+        except Exception as e:
+            logger.error(f"Error calculating expected market return: {e}")
+            raise
     
     def _recognize_hyperdimensional_patterns(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Recognize patterns in hyperdimensional space"""
@@ -3839,8 +3845,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error recognizing hyperdimensional patterns: {e}")
-            return {'pattern_confidence': 0.5, 'pattern_direction': 'neutral',
-                   'dimension_count': 4, 'hidden_patterns': [],
+            raise
                    'hyperdimensional_signal': 'wait'}
     
     def _manipulate_consciousness_field(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -3897,8 +3902,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error manipulating consciousness field: {e}")
-            return {'field_manipulation_strength': 0, 'manipulation_direction': 'neutral',
-                   'affected_traders': 0, 'consciousness_virus_deployed': False,
+            raise
                    'telepathic_suggestions_sent': 0}
     
     def _execute_quantum_entanglement_trade(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -3945,8 +3949,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error executing quantum entanglement trade: {e}")
-            return {'spooky_action_profit': 0, 'entangled_pairs': [],
-                   'instantaneous_execution': False, 'quantum_correlation': 0,
+            raise
                    'bell_violation': 0}
     
     def _extract_time_crystal_momentum(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -4004,8 +4007,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error extracting time crystal momentum: {e}")
-            return {'perpetual_motion_profit': 0, 'temporal_direction': 1,
-                   'crystal_stability': 0, 'time_loop_detected': False,
+            raise
                    'eternal_profit_active': False}
     
     # Enhanced helper methods for ultra-intelligence
@@ -4035,7 +4037,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error achieving godmode: {e}")
-            return False
+            raise
     
     def _calculate_consciousness_singularity_distance(self):
         """Calculate distance to consciousness singularity"""
@@ -4064,6 +4066,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error calculating singularity distance: {e}")
+            raise
     
     def _transcend_market_reality(self):
         """Transcend normal market reality constraints"""
@@ -4094,7 +4097,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error transcending reality: {e}")
-            return {'transcended': False}
+            raise
     
     # Ultra-Advanced Analysis Methods
     def _analyze_quantum_consciousness_network(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -4156,8 +4159,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error in quantum consciousness network: {e}")
-            return {'hive_mind_consensus': 'neutral', 'collective_iq': 100,
-                   'node_synchronization': 0.5, 'swarm_pattern': 'dispersed',
+            raise
                    'collective_decision_confidence': 0.5}
     
     def _resolve_temporal_paradoxes(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -4217,8 +4219,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error resolving temporal paradoxes: {e}")
-            return {'paradox_detected': False, 'paradox_type': 'none',
-                   'paradox_profit_potential': 0, 'resolution_method': 'none',
+            raise
                    'temporal_stability': 1.0}
     
     def _scan_dimensional_arbitrage(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -4267,8 +4268,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error scanning dimensional arbitrage: {e}")
-            return {'arbitrage_profit_estimate': 0, 'best_dimension_path': [],
-                   'dimensional_spread': {}, 'arbitrage_confidence': 0, 'execution_risk': 0}
+            raise
     
     def _process_neuro_quantum_fusion(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Process signals through neuro-quantum fusion system"""
@@ -4308,8 +4308,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error in neuro-quantum fusion: {e}")
-            return {'hybrid_intelligence_score': 1.0, 'thought_quantum_tunneling': 0,
-                   'quantum_learning_active': False, 'fusion_insight': '',
+            raise
                    'breakthrough_probability': 0}
     
     def _synthesize_favorable_reality(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -4365,8 +4364,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error synthesizing reality: {e}")
-            return {'manifestation_progress': 0, 'target_direction': 'neutral',
-                   'reality_malleability': 0, 'synthesis_power': 0,
+            raise
                    'consensus_nodes_controlled': 0}
     
     def _consult_cosmic_oracle(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -4458,8 +4456,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error consulting cosmic oracle: {e}")
-            return {'stellar_guidance_signal': 'hold', 'oracle_confidence': 0.5,
-                   'cosmic_cycle_phase': 'neutral', 'galactic_economic_trend': 'stable',
+            raise
                    'universal_wisdom': 'Silence is the language of the cosmos'}
     
     def _consult_quantum_oracle(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -4521,8 +4518,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error consulting quantum oracle: {e}")
-            return {'quantum_prediction': 'neutral', 'probability_amplitude': 0.5,
-                   'timeline_convergence': False, 'oracle_certainty': 0.5,
+            raise
                    'quantum_advice': 'The quantum field is uncertain'}
     
     def _navigate_temporal_dimensions(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -4614,8 +4610,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error navigating temporal dimensions: {e}")
-            return {'time_direction': 'forward', 'temporal_anomaly': False,
-                   'causal_loop_detected': False, 'time_dilation_factor': 1.0,
+            raise
                    'future_echo_strength': 0, 'past_shadow_influence': 0,
                    'temporal_confidence': 0.5}
     
@@ -4696,8 +4691,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error scanning higher dimensions: {e}")
-            return {'active_dimensions': 11, 'dimensional_flux': 0,
-                   'brane_collision_imminent': False, 'string_vibration_frequency': 0,
+            raise
                    'calabi_yau_topology': 'stable', 'hidden_dimension_signal': 0,
                    'dimensional_confidence': 0.5}
     
@@ -4764,8 +4758,7 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error applying meta-learning: {e}")
-            return {'learning_rate': 0.01, 'adaptation_signal': 'neutral',
-                   'strategy_evolution': 0, 'pattern_recognition': 0,
+            raise
                    'meta_confidence': 0.5}
     
     def _synthesize_hyper_intelligence(self, quantum_decision: QuantumDecision,
@@ -4864,7 +4857,6 @@ class TradingStrategy:
             
         except Exception as e:
             logger.error(f"Error synthesizing hyper-intelligence: {e}")
-            return {'synthesis_complete': False, 'hyper_signal': 'neutral',
-                   'omniscience_level': 0, 'singularity_proximity': float('inf'),
+            raise
                    'transcendent_confidence': 0.5, 'ultimate_decision': 'wait',
                    'intelligence_level': 5, 'decision_clarity': 0.5, 'quantum_coherence': 0.5}

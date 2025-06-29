@@ -472,7 +472,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in quantum ultra indicators: {e}")
-            return {'current_price': current_price, 'error': str(e)}
+            raise
     
     def _initialize_quantum_state(self, df: pd.DataFrame, current_price: float) -> QuantumState:
         """Initialize quantum representation of market state with advanced physics models"""
@@ -530,8 +530,9 @@ class QuantumUltraIntelligentIndicators:
                     popt, _ = curve_fit(exp_decay, lags, np.abs(autocorr_lags), p0=[1, 5])
                     decoherence_time = popt[1]
                     coherence = min(1.0, decoherence_time / 20)  # Normalized by max lag
-                except:
-                    coherence = abs(returns.iloc[-50:].autocorr(lag=1))
+                except Exception as e:
+                    logger.error(f"Failed to calculate quantum coherence using curve fitting: {e}")
+                    raise
             
             # Quantum measurement collapse probability
             collapse_prob = self._calculate_measurement_collapse(df, current_price)
@@ -590,13 +591,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in quantum state initialization: {e}")
-            return QuantumState(
-                amplitude=complex(0, 0),
-                phase=0.0,
-                entanglement=0.5,
-                coherence=0.5,
-                measurement_basis='price'
-            )
+            raise
     
     def _detect_quantum_market_regime(self, df: pd.DataFrame, current_price: float, quantum_state: QuantumState) -> MarketRegime:
         """Intelligent market regime detection"""
@@ -695,7 +690,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in regime detection: {e}")
-            return MarketRegime('ranging', 'medium', 'neutral', 0.5, 'superposition', 'accumulation')
+            raise
     
     def _adapt_quantum_parameters(self, regime: MarketRegime, quantum_state: QuantumState):
         """Adapt indicator parameters based on market regime and quantum state"""
@@ -1367,7 +1362,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error estimating PIN: {e}")
-            return 0.5
+            raise
     
     def _detect_toxic_flow(self, df: pd.DataFrame, current_price: float) -> float:
         """Detect probability of toxic order flow"""
@@ -1409,7 +1404,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error detecting toxic flow: {e}")
-            return 0.0
+            raise
     
     def _analyze_cross_asset_dynamics(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Analyze cross-asset correlations and spillover effects"""
@@ -1466,8 +1461,9 @@ class QuantumUltraIntelligentIndicators:
                 if tracking_error > 0:
                     return excess_returns.mean() / tracking_error
             return 0.0
-        except:
-            return 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate information ratio: {e}")
+            raise
     
     def _advanced_sentiment_analysis(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Ultra-intelligent sentiment analysis with NLP simulation, social media, and news impact"""
@@ -1698,7 +1694,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error simulating news sentiment: {e}")
-            news_sentiment['news_sentiment_score'] = 0.5
+            raise
             
         return news_sentiment
     
@@ -1799,7 +1795,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error simulating social media sentiment: {e}")
-            social_sentiment['social_media_sentiment'] = 0.5
+            raise
             
         return social_sentiment
     
@@ -1855,7 +1851,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error simulating options sentiment: {e}")
-            options_sentiment['options_sentiment_score'] = 0.5
+            raise
             
         return options_sentiment
     
@@ -1922,7 +1918,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error detecting institutional sentiment: {e}")
-            institutional['institutional_sentiment_score'] = 0.5
+            raise
             
         return institutional
     
@@ -2149,8 +2145,9 @@ class QuantumUltraIntelligentIndicators:
             
             return correct / total if total > 0 else 0.5
             
-        except:
-            return 0.5
+        except Exception as e:
+            logger.error(f"Failed to calculate pattern accuracy: {e}")
+            raise
     
     def _quantum_neural_fusion(self, signals: Dict[str, Any]) -> Dict[str, Any]:
         """Ultra-intelligent signal fusion using quantum neural network with attention mechanisms"""
@@ -2195,7 +2192,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in quantum neural fusion: {e}")
-            composite = {'signal': 'neutral', 'confidence': 0.0, 'strength': 0.5}
+            raise
             
         return composite
     
@@ -2342,8 +2339,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error applying attention mechanism: {e}")
-            # Fallback to concatenation
-            return np.concatenate(list(features.values()))
+            raise
     
     def _multi_head_attention(self, features: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
         """Multi-head attention for different aspects of trading"""
@@ -2447,13 +2443,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in quantum feature superposition: {e}")
-            quantum_features = {
-                'bullish_probability': 0.5,
-                'bearish_probability': 0.5,
-                'superposition_strength': 0.5,
-                'quantum_uncertainty': 0.5,
-                'contribution': 0.1
-            }
+            raise
             
         return quantum_features
     
@@ -2501,13 +2491,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in deep neural processing: {e}")
-            return {
-                'main_signal': 0.5,
-                'trend_signal': 0.5,
-                'reversion_signal': 0.5,
-                'risk_signal': 0.5,
-                'micro_signal': 0.5
-            }
+            raise
     
     def _ensemble_signal_fusion(self, features: Dict[str, np.ndarray], deep_output: Dict[str, float], 
                                quantum_features: Dict[str, Any]) -> Dict[str, Any]:
@@ -2572,7 +2556,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in ensemble signal fusion: {e}")
-            ensemble = {'signal_strength': 0.5, 'weights_used': {}, 'components': {}}
+            raise
             
         return ensemble
     
@@ -2600,7 +2584,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error calculating signal with uncertainty: {e}")
-            return 0.5, 0.5
+            raise
     
     def _generate_calibrated_signal(self, signal_strength: float, uncertainty: float, 
                                    ensemble: Dict[str, Any]) -> Dict[str, Any]:
@@ -2640,12 +2624,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error generating calibrated signal: {e}")
-            composite = {
-                'signal': 'neutral',
-                'confidence': 0.0,
-                'strength': 0.5,
-                'uncertainty': 1.0
-            }
+            raise
             
         return composite
     
@@ -2729,7 +2708,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error assessing signal quality: {e}")
-            return 0.5
+            raise
     
     def _update_attention_weights(self, composite: Dict[str, Any], signals: Dict[str, Any]):
         """Update attention weights based on signal quality"""
@@ -2779,7 +2758,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error calculating confidence: {e}")
-            return 0.5
+            raise
     
     def _calculate_adaptive_indicators(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Calculate traditional indicators with adaptive parameters"""
@@ -2836,8 +2815,9 @@ class QuantumUltraIntelligentIndicators:
             rs = gain / loss
             rsi = 100 - (100 / (1 + rs.iloc[-1]))
             return rsi
-        except:
-            return 50.0
+        except Exception as e:
+            logger.error(f"Failed to calculate RSI: {e}")
+            raise
     
     def _calculate_macd(self, df: pd.DataFrame) -> Tuple[float, float, float]:
         """Calculate MACD"""
@@ -2848,8 +2828,9 @@ class QuantumUltraIntelligentIndicators:
             signal_line = macd_line.ewm(span=9).mean()
             histogram = macd_line - signal_line
             return macd_line.iloc[-1], signal_line.iloc[-1], histogram.iloc[-1]
-        except:
-            return 0.0, 0.0, 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate MACD: {e}")
+            raise
     
     def _calculate_atr(self, df: pd.DataFrame, period: int) -> float:
         """Calculate ATR"""
@@ -2860,8 +2841,9 @@ class QuantumUltraIntelligentIndicators:
             tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
             atr = tr.rolling(period).mean().iloc[-1]
             return atr
-        except:
-            return 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate ATR: {e}")
+            raise
     
     def _calculate_berry_phase(self, price_loop: np.ndarray) -> float:
         """Calculate Berry phase from closed price loop"""
@@ -2874,8 +2856,9 @@ class QuantumUltraIntelligentIndicators:
             berry_phase = np.sum(np.diff(phases))
             
             return berry_phase % (2 * np.pi)
-        except:
-            return 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate Berry phase from price loop: {e}")
+            raise
     
     def _create_density_matrix(self, df: pd.DataFrame) -> np.ndarray:
         """Create quantum density matrix from multi-timeframe data"""
@@ -2906,8 +2889,9 @@ class QuantumUltraIntelligentIndicators:
             density_matrix /= np.trace(density_matrix)
             
             return density_matrix[:3, :3]  # Return 3x3 for timeframes
-        except:
-            return np.eye(3) / 3
+        except Exception as e:
+            logger.error(f"Failed to create density matrix: {e}")
+            raise
     
     def _calculate_measurement_collapse(self, df: pd.DataFrame, current_price: float) -> float:
         """Calculate probability of quantum measurement collapse"""
@@ -2935,8 +2919,9 @@ class QuantumUltraIntelligentIndicators:
             collapse_prob = np.exp(-min_distance * 100) * (1 + volatility * 10)
             
             return min(1.0, collapse_prob)
-        except:
-            return 0.5
+        except Exception as e:
+            logger.error(f"Failed to calculate measurement collapse probability: {e}")
+            raise
     
     def _initialize_attention_mechanism(self) -> Dict[str, float]:
         """Initialize attention mechanism for feature importance"""
@@ -3088,7 +3073,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error extracting RL state: {e}")
-            return np.zeros(13, dtype=np.float32)
+            raise
     
     def _calculate_rl_rewards(self, df: pd.DataFrame, current_price: float):
         """Calculate rewards for previous actions"""
@@ -3158,8 +3143,9 @@ class QuantumUltraIntelligentIndicators:
             q_values = hidden * np.array([0.3, 0.2, 0.0, -0.2, -0.3])
             
             return q_values[action_idx]
-        except:
-            return 0.0
+        except Exception as e:
+            logger.error(f"Failed to estimate Q-value: {e}")
+            raise
     
     def _estimate_max_q_value(self, state: np.ndarray) -> float:
         """Estimate maximum Q-value for a state"""
@@ -3169,8 +3155,9 @@ class QuantumUltraIntelligentIndicators:
             for action in ['strong_buy', 'buy', 'neutral', 'sell', 'strong_sell']:
                 q_values.append(self._estimate_q_value(state, action))
             return max(q_values)
-        except:
-            return 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate max Q-value: {e}")
+            raise
     
     def _update_neural_weights_rl(self, state: np.ndarray, action: str, td_error: float, learning_rate: float):
         """Update neural weights based on TD error"""
@@ -3373,7 +3360,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in wavelet analysis: {e}")
-            return {'dominant_periods': [10, 20, 50], 'trend_strength': 1.0}
+            raise
     
     def _calculate_fractal_dimension(self, df: pd.DataFrame) -> float:
         """Calculate fractal dimension using box-counting method"""
@@ -3416,7 +3403,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error calculating fractal dimension: {e}")
-            return 1.5
+            raise
     
     def _calculate_chaos_metrics(self, df: pd.DataFrame) -> Dict[str, float]:
         """Calculate chaos theory metrics"""
@@ -3463,7 +3450,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error calculating chaos metrics: {e}")
-            return {'lyapunov_exponent': 0.0, 'correlation_dimension': 2.0, 'is_chaotic': False, 'predictability': 1.0}
+            raise
     
     def _reconstruct_phase_space(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Reconstruct phase space for attractor analysis"""
@@ -3507,7 +3494,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in phase space reconstruction: {e}")
-            return {'attractor_type': 'unknown', 'phase_spread': [0, 0, 0], 'phase_complexity': 0.5}
+            raise
     
     def _deep_pattern_recognition(self, df: pd.DataFrame, current_price: float) -> List[PatternSignal]:
         """Enhanced pattern recognition with deep learning and fractals"""
@@ -3751,7 +3738,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error applying quantum superposition: {e}")
-            return patterns
+            raise
     
     def _calculate_quantum_confidence(self, composite_signal: Dict[str, Any], quantum_state: QuantumState) -> float:
         """Calculate quantum-enhanced confidence score"""
@@ -3794,7 +3781,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error calculating quantum confidence: {e}")
-            return 0.5
+            raise
     
     def _calculate_quantum_adaptive_indicators(self, df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
         """Calculate traditional indicators with quantum adaptation"""
@@ -3940,7 +3927,7 @@ class QuantumUltraIntelligentIndicators:
                 
         except Exception as e:
             logger.error(f"Error calculating advanced risk metrics: {e}")
-            risk_metrics['error'] = str(e)
+            raise
             
         return risk_metrics
     
@@ -4046,7 +4033,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error calculating risk score: {e}")
-            return 0.5
+            raise
     
     def _monte_carlo_risk_simulation(self, returns: pd.Series, current_price: float, n_simulations: int = 1000) -> Dict[str, Any]:
         """Perform Monte Carlo simulation for risk analysis"""
@@ -4084,7 +4071,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in Monte Carlo simulation: {e}")
-            return {}
+            raise
     
     def _calculate_regime_specific_risks(self, regime: MarketRegime, returns: pd.Series, df: pd.DataFrame) -> Dict[str, Any]:
         """Calculate risks specific to current market regime"""
@@ -4133,7 +4120,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error calculating regime-specific risks: {e}")
-            return {}
+            raise
     
     def _estimate_black_swan_probability(self, returns: pd.Series, df: pd.DataFrame) -> float:
         """Estimate probability of black swan event"""
@@ -4206,7 +4193,7 @@ class QuantumUltraIntelligentIndicators:
                 
         except Exception as e:
             logger.error(f"Error estimating black swan probability: {e}")
-            return 0.01
+            raise
     
     # Helper Methods for Quantum State Calculation
     def _calculate_berry_phase(self, price_loop: np.ndarray) -> float:
@@ -4238,8 +4225,9 @@ class QuantumUltraIntelligentIndicators:
             berry_phase = np.trapz(berry_connection, theta[:-1])
             
             return berry_phase % (2 * np.pi)
-        except:
-            return 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate Berry phase from trajectory: {e}")
+            raise
     
     def _create_density_matrix(self, df: pd.DataFrame) -> np.ndarray:
         """Create density matrix for multi-timeframe quantum state"""
@@ -4276,8 +4264,9 @@ class QuantumUltraIntelligentIndicators:
                 density_matrix /= trace
             
             return density_matrix
-        except:
-            return np.eye(2) / 2
+        except Exception as e:
+            logger.error(f"Failed to create density matrix: {e}")
+            raise
     
     def _calculate_measurement_collapse(self, df: pd.DataFrame, current_price: float) -> float:
         """Calculate probability of quantum measurement collapse"""
@@ -4311,8 +4300,9 @@ class QuantumUltraIntelligentIndicators:
             collapse_probability = base_probability * kurtosis_factor * measurement_strength
             
             return min(1.0, max(0.0, collapse_probability))
-        except:
-            return 0.5
+        except Exception as e:
+            logger.error(f"Failed to calculate collapse probability: {e}")
+            raise
     
     # Ultra-Intelligent Quantum Methods
     def _calculate_quantum_fisher_information(self, returns: pd.Series) -> float:
@@ -4328,8 +4318,9 @@ class QuantumUltraIntelligentIndicators:
             quantum_fisher = fisher_info * (1 + squeeze_factor)
             
             return min(10.0, quantum_fisher)  # Cap for numerical stability
-        except:
-            return 1.0
+        except Exception as e:
+            logger.error(f"Failed to calculate quantum Fisher information: {e}")
+            raise
     
     def _calculate_quantum_discord(self, df: pd.DataFrame) -> float:
         """Calculate quantum discord - non-classical correlations"""
@@ -4353,8 +4344,9 @@ class QuantumUltraIntelligentIndicators:
             
             quantum_discord = abs(phase_corr - classical_corr)
             return min(1.0, quantum_discord)
-        except:
-            return 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate quantum discord: {e}")
+            raise
     
     def _calculate_topological_charge(self, prices: np.ndarray) -> int:
         """Calculate topological charge (winding number) of price trajectory"""
@@ -4373,8 +4365,9 @@ class QuantumUltraIntelligentIndicators:
             winding_number = int(np.round(total_rotation / (2 * np.pi)))
             
             return winding_number
-        except:
-            return 0
+        except Exception as e:
+            logger.error(f"Failed to calculate topological charge: {e}")
+            raise
     
     def _calculate_tunneling_rate(self, volatility: float, df: pd.DataFrame) -> float:
         """Calculate quantum tunneling rate for barrier breakthrough"""
@@ -4395,8 +4388,9 @@ class QuantumUltraIntelligentIndicators:
             tunneling_rate = np.exp(-2 * barrier_strength)
             
             return tunneling_rate
-        except:
-            return 0.1
+        except Exception as e:
+            logger.error(f"Failed to calculate tunneling rate: {e}")
+            raise
     
     def _calculate_bloch_vector(self, amplitude: complex) -> np.ndarray:
         """Calculate Bloch sphere representation of quantum state"""
@@ -4417,8 +4411,9 @@ class QuantumUltraIntelligentIndicators:
             z = alpha**2 - beta**2
             
             return np.array([x, y, z])
-        except:
-            return np.zeros(3)
+        except Exception as e:
+            logger.error(f"Failed to calculate Bloch vector: {e}")
+            raise
     
     def _calculate_state_fidelity(self, quantum_state: QuantumState, df: pd.DataFrame) -> float:
         """Calculate fidelity between current and ideal quantum state"""
@@ -4439,8 +4434,9 @@ class QuantumUltraIntelligentIndicators:
             market_adjustment = np.exp(-volatility * 10)
             
             return fidelity * market_adjustment
-        except:
-            return 0.5
+        except Exception as e:
+            logger.error(f"Failed to calculate state fidelity: {e}")
+            raise
     
     def _calculate_squeezed_variance(self, returns: pd.Series) -> float:
         """Calculate squeezed state variance for uncertainty reduction"""
@@ -4457,8 +4453,9 @@ class QuantumUltraIntelligentIndicators:
             squeezed_var = variance * np.exp(-2 * abs(r))
             
             return max(0.1, squeezed_var)
-        except:
-            return 1.0
+        except Exception as e:
+            logger.error(f"Failed to calculate squeezed variance: {e}")
+            raise
     
     def _calculate_wigner_negativity(self, amplitude: complex, phase: float) -> float:
         """Calculate Wigner function negativity indicating non-classical behavior"""
@@ -4478,8 +4475,9 @@ class QuantumUltraIntelligentIndicators:
             negativity = max(0, 1 - W_0) * np.exp(-alpha/2)
             
             return negativity
-        except:
-            return 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate Wigner negativity: {e}")
+            raise
     
     def _perform_quantum_walk(self, df: pd.DataFrame, current_price: float) -> float:
         """Perform quantum walk to explore price probability distribution"""
@@ -4509,8 +4507,9 @@ class QuantumUltraIntelligentIndicators:
             walk_position = current_price * (1 + position)
             
             return walk_position
-        except:
-            return current_price
+        except Exception as e:
+            logger.error(f"Failed to perform quantum walk: {e}")
+            raise
     
     def _calculate_vqe_energy(self, quantum_state: QuantumState, df: pd.DataFrame) -> float:
         """Calculate VQE (Variational Quantum Eigensolver) energy for optimal state"""
@@ -4530,8 +4529,9 @@ class QuantumUltraIntelligentIndicators:
             normalized_energy = np.tanh(energy)
             
             return normalized_energy
-        except:
-            return 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate VQE energy: {e}")
+            raise
     
     # Ultra-Intelligent Quantum Field Theory Methods
     def _analyze_quantum_field(self, df: pd.DataFrame, current_price: float, quantum_state: QuantumState) -> QuantumFieldState:
@@ -4619,7 +4619,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in quantum field analysis: {e}")
-            return QuantumFieldState()
+            raise
     
     def _detect_consciousness_field(self, df: pd.DataFrame, current_price: float) -> ConsciousnessField:
         """Detect and model collective market consciousness"""
@@ -4711,7 +4711,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in consciousness field detection: {e}")
-            return ConsciousnessField()
+            raise
     
     def _calculate_hyperdimensional_state(self, df: pd.DataFrame, current_price: float) -> HyperdimensionalState:
         """Calculate market state in higher dimensions"""
@@ -4790,7 +4790,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in hyperdimensional calculation: {e}")
-            return HyperdimensionalState()
+            raise
     
     def _infer_causal_structure(self, df: pd.DataFrame, current_price: float) -> CausalStructure:
         """Infer causal relationships in market dynamics"""
@@ -4896,7 +4896,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in causal inference: {e}")
-            return CausalStructure()
+            raise
     
     def _process_neuromorphic_state(self, df: pd.DataFrame, current_price: float) -> NeuromorphicState:
         """Process market data through brain-inspired computing model"""
@@ -4995,7 +4995,7 @@ class QuantumUltraIntelligentIndicators:
             
         except Exception as e:
             logger.error(f"Error in neuromorphic processing: {e}")
-            return NeuromorphicState()
+            raise
     
     # Helper methods for ultra-intelligent features
     def _calculate_action(self, path: np.ndarray) -> float:

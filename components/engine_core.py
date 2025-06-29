@@ -28,7 +28,7 @@ class UltraTradingEngine:
         self.market_data = MarketData(self.api_client)
         self.symbol_utils = SymbolUtils()
         self.strategy = TradingStrategy()
-        self.risk_manager = RiskManagement()
+        self.risk_manager = RiskManagement(self.api_client)
         self.order_manager = OrderManagement(self.api_client)
         
         # Configuration
@@ -94,9 +94,13 @@ class UltraTradingEngine:
             except KeyboardInterrupt:
                 logger.info("Keyboard interrupt received")
                 break
+            except KeyboardInterrupt:
+                logger.info("Keyboard interrupt received")
+                break
             except Exception as e:
-                logger.error(f"Error in main loop: {e}")
-                time.sleep(5)  # Wait before retrying
+                logger.error(f"Critical error in main loop: {e}")
+                self.running = False
+                raise
         
         logger.info("📉 Main trading loop stopped")
     
@@ -151,9 +155,11 @@ class UltraTradingEngine:
                             self._execute_signal(symbol, signal)
                     except Exception as e:
                         logger.error(f"Error analyzing {symbol}: {e}")
+                        # Continue with other symbols but log the failure
             
         except Exception as e:
             logger.error(f"Error in trading loop: {e}")
+            raise
     
     def _discover_symbols(self) -> List[str]:
         """Discover and filter tradable symbols"""
@@ -195,7 +201,7 @@ class UltraTradingEngine:
             
         except Exception as e:
             logger.error(f"Error discovering symbols: {e}")
-            return []
+            raise
     
     def _is_trading_hours(self) -> bool:
         """Check if current time is within trading hours"""
@@ -222,10 +228,12 @@ class UltraTradingEngine:
         for symbol in self.tradable_symbols[:10]:  # Check top 10 symbols
             df = self.market_data.get_market_data(symbol)
             if df is None or len(df) < 50:
+                logger.warning(f"Insufficient data for force trade on {symbol}")
                 continue
             
             current_price = self.market_data.get_current_price(symbol)
             if not current_price:
+                logger.warning(f"Cannot get current price for force trade on {symbol}")
                 continue
             
             signal = self.strategy.force_trade_signal(symbol, df, current_price)
@@ -245,20 +253,24 @@ class UltraTradingEngine:
                 symbol, self.active_trades, self.last_trade_time
             )
             if not can_trade:
+                logger.debug(f"Cannot trade {symbol}: {reason}")
                 return None
             
             # Check spread
             spread_ok, spread = self.market_data.check_spread(symbol)
             if not spread_ok and not self.config["IGNORE_SPREAD"]:
+                logger.debug(f"Spread too wide for {symbol}: {spread}")
                 return None
             
             # Get market data
             df = self.market_data.get_market_data(symbol)
             if df is None or len(df) < 50:
+                logger.debug(f"Insufficient market data for {symbol}")
                 return None
             
             current_price = self.market_data.get_current_price(symbol)
             if not current_price:
+                logger.debug(f"Cannot get current price for {symbol}")
                 return None
             
             # Generate signal
@@ -275,7 +287,7 @@ class UltraTradingEngine:
             
         except Exception as e:
             logger.error(f"Error analyzing {symbol}: {e}")
-            return None
+            raise
     
     def _execute_signal(self, symbol: str, signal: Signal):
         """Execute trading signal"""
@@ -334,6 +346,7 @@ class UltraTradingEngine:
                 
         except Exception as e:
             logger.error(f"Error executing signal for {symbol}: {e}")
+            raise
     
     def _manage_positions(self):
         """Manage open positions"""
@@ -352,3 +365,4 @@ class UltraTradingEngine:
             
         except Exception as e:
             logger.error(f"Error managing positions: {e}")
+            raise

@@ -37,7 +37,7 @@ class MarketData:
             return None
         except Exception as e:
             logger.error(f"Error getting price for {symbol}: {e}")
-            return None
+            raise
     
     def get_market_data(self, symbol: str, count: int = 100) -> Optional[pd.DataFrame]:
         """Get market data with caching"""
@@ -63,7 +63,7 @@ class MarketData:
             return None
         except Exception as e:
             logger.error(f"Error getting market data for {symbol}: {e}")
-            return None
+            raise
     
     def check_spread(self, symbol: str) -> Tuple[bool, float]:
         """Check if spread is acceptable for trading"""
@@ -77,7 +77,7 @@ class MarketData:
         try:
             symbol_info = self.api_client.get_symbol_info(symbol)
             if not symbol_info:
-                return False, 999.0
+                raise ValueError(f"Cannot retrieve symbol info for {symbol}")
             
             spread = symbol_info.get('spread', 999)
             
@@ -110,7 +110,7 @@ class MarketData:
             
         except Exception as e:
             logger.error(f"Error checking spread for {symbol}: {e}")
-            return False, 999.0
+            raise
     
     def _get_max_spread(self, symbol: str) -> float:
         """Get maximum allowed spread for a symbol"""

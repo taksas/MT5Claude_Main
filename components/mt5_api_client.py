@@ -22,7 +22,7 @@ class MT5APIClient:
             return response.status_code == 200
         except Exception as e:
             logger.error(f"Connection check failed: {e}")
-            return False
+            raise
     
     def get_balance(self) -> Optional[float]:
         """Get account balance"""
@@ -34,7 +34,7 @@ class MT5APIClient:
             return None
         except Exception as e:
             logger.error(f"Failed to get balance: {e}")
-            return None
+            raise
     
     def get_account_info(self) -> Optional[Dict[str, Any]]:
         """Get full account information"""
@@ -45,7 +45,7 @@ class MT5APIClient:
             return None
         except Exception as e:
             logger.error(f"Failed to get account info: {e}")
-            return None
+            raise
     
     def discover_symbols(self) -> List[str]:
         """Discover all tradable symbols"""
@@ -57,7 +57,7 @@ class MT5APIClient:
             return []
         except Exception as e:
             logger.error(f"Failed to discover symbols: {e}")
-            return []
+            raise
     
     def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get symbol information"""
@@ -70,7 +70,7 @@ class MT5APIClient:
             return None
         except Exception as e:
             logger.error(f"Failed to get symbol info for {symbol}: {e}")
-            return None
+            raise
     
     def get_current_price(self, symbol: str) -> Optional[Dict[str, float]]:
         """Get current price for a symbol"""
@@ -83,24 +83,11 @@ class MT5APIClient:
                     'ask': symbol_info['ask']
                 }
             
-            # Fallback: get latest candle
-            response = requests.post(
-                f"{self.api_base}/market/history",
-                json={"symbol": symbol, "timeframe": "M1", "count": 1},
-                timeout=5
-            )
-            if response.status_code == 200:
-                candles = response.json()
-                if candles and len(candles) > 0:
-                    close_price = candles[0]['close']
-                    return {
-                        'bid': close_price,
-                        'ask': close_price  # Using close as both bid/ask
-                    }
-            return None
+            # Cannot get real-time price data
+            raise ValueError(f"Real-time price data unavailable for {symbol}")
         except Exception as e:
             logger.error(f"Failed to get price for {symbol}: {e}")
-            return None
+            raise
     
     def get_market_history(self, symbol: str, timeframe: str, count: int = 100) -> Optional[Dict[str, Any]]:
         """Get historical market data"""
@@ -119,7 +106,7 @@ class MT5APIClient:
             return None
         except Exception as e:
             logger.error(f"Failed to get market data for {symbol}: {e}")
-            return None
+            raise
     
     def place_order(self, order: Dict[str, Any]) -> Optional[int]:
         """Place trading order"""
@@ -138,7 +125,7 @@ class MT5APIClient:
             return None
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
-            return None
+            raise
     
     def get_positions(self) -> List[Dict[str, Any]]:
         """Get open positions"""
@@ -149,14 +136,19 @@ class MT5APIClient:
                 # API returns list directly
                 if isinstance(data, list):
                     return data
-                # Fallback if it's a dict with positions key
+                # Handle unexpected data format
                 elif isinstance(data, dict):
-                    return data.get('positions', [])
-                return []
-            return []
+                    if 'positions' in data:
+                        return data['positions']
+                    else:
+                        raise ValueError(f"Unexpected positions data format: {data}")
+                else:
+                    raise ValueError(f"Invalid positions data type: {type(data)}")
+            else:
+                raise ValueError(f"API returned error: {response.status_code}")
         except Exception as e:
             logger.error(f"Failed to get positions: {e}")
-            return []
+            raise
     
     def close_position(self, ticket: int) -> bool:
         """Close a specific position"""
@@ -168,7 +160,7 @@ class MT5APIClient:
             return response.status_code == 200
         except Exception as e:
             logger.error(f"Failed to close position {ticket}: {e}")
-            return False
+            raise
     
     def modify_position(self, ticket: int, sl: float, tp: float) -> bool:
         """Modify position stop loss and take profit"""
@@ -181,4 +173,4 @@ class MT5APIClient:
             return response.status_code == 200
         except Exception as e:
             logger.error(f"Failed to modify position {ticket}: {e}")
-            return False
+            raise
