@@ -9,13 +9,14 @@ import sys
 import time
 import json
 import requests
-from datetime import datetime
-from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
 import threading
 import queue
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 import collections
+from enum import Enum
 
 # 'Visualizer'という名前でロガーを取得するのは、ログメッセージのソースを識別するために引き続き有用です。
 logger = logging.getLogger('Visualizer')
@@ -38,6 +39,235 @@ class DisplayData:
     positions: List[Dict] = None
     strategy_signals: Dict[str, Dict] = None
     last_update: datetime = None
+
+class SignalDirection(Enum):
+    """Signal direction enumeration"""
+    BUY = "BUY"
+    SELL = "SELL"
+    NEUTRAL = "NEUTRAL"
+
+@dataclass
+class CurrencyPairData:
+    """Data structure for currency pair analysis"""
+    symbol: str
+    is_monitoring: bool = False
+    confidence: float = 0.0
+    direction: SignalDirection = SignalDirection.NEUTRAL
+    last_signal_time: datetime = field(default_factory=datetime.now)
+    signal_count: int = 0
+    avg_confidence: float = 0.0
+    last_price: float = 0.0
+    analysis_status: str = "IDLE"  # IDLE, ANALYZING, TRADING
+
+class PairMonitoringAgent:
+    """Agent responsible for tracking currency pair monitoring status"""
+    
+    def __init__(self):
+        self.monitored_pairs: Dict[str, CurrencyPairData] = {}
+        self.active_symbols: List[str] = []
+        
+    def update_active_symbols(self, symbols: List[str]):
+        """Update list of actively monitored symbols"""
+        self.active_symbols = symbols
+        
+        # Add new symbols
+        for symbol in symbols:
+            if symbol not in self.monitored_pairs:
+                self.monitored_pairs[symbol] = CurrencyPairData(
+                    symbol=symbol,
+                    is_monitoring=True,
+                    analysis_status="ANALYZING"
+                )
+        
+        # Mark symbols as not monitoring if they're no longer active
+        for symbol in self.monitored_pairs:
+            if symbol in symbols:
+                self.monitored_pairs[symbol].is_monitoring = True
+                if self.monitored_pairs[symbol].analysis_status == "IDLE":
+                    self.monitored_pairs[symbol].analysis_status = "ANALYZING"
+            else:
+                self.monitored_pairs[symbol].is_monitoring = False
+                self.monitored_pairs[symbol].analysis_status = "IDLE"
+    
+    def get_monitored_pairs(self) -> Dict[str, CurrencyPairData]:
+        """Get all monitored currency pairs"""
+        return self.monitored_pairs
+
+class ConfidenceAgent:
+    """Agent responsible for confidence analysis and calculation"""
+    
+    def __init__(self, max_history: int = 10):
+        self.confidence_history: Dict[str, collections.deque] = {}
+        self.max_history = max_history
+        
+    def update_confidence(self, symbol: str, confidence: float, timestamp: datetime = None):
+        """Update confidence for a symbol"""
+        if timestamp is None:
+            timestamp = datetime.now()
+            
+        if symbol not in self.confidence_history:
+            self.confidence_history[symbol] = collections.deque(maxlen=self.max_history)
+        
+        self.confidence_history[symbol].append((confidence, timestamp))
+    
+    def get_current_confidence(self, symbol: str) -> float:
+        """Get current confidence for a symbol"""
+        if symbol not in self.confidence_history or not self.confidence_history[symbol]:
+            return 0.0
+        return self.confidence_history[symbol][-1][0]
+    
+    def get_average_confidence(self, symbol: str) -> float:
+        """Get average confidence over history"""
+        if symbol not in self.confidence_history or not self.confidence_history[symbol]:
+            return 0.0
+        
+        confidences = [conf for conf, _ in self.confidence_history[symbol]]
+        return sum(confidences) / len(confidences)
+    
+    def get_confidence_trend(self, symbol: str) -> str:
+        """Get confidence trend (RISING, FALLING, STABLE)"""
+        if symbol not in self.confidence_history or len(self.confidence_history[symbol]) < 2:
+            return "STABLE"
+        
+        recent = list(self.confidence_history[symbol])[-2:]
+        if recent[1][0] > recent[0][0] + 0.05:
+            return "RISING"
+        elif recent[1][0] < recent[0][0] - 0.05:
+            return "FALLING"
+        else:
+            return "STABLE"
+
+class DirectionalAgent:
+    """Agent responsible for buy/sell recommendation analysis"""
+    
+    def __init__(self, max_signals: int = 5):
+        self.signal_history: Dict[str, collections.deque] = {}
+        self.max_signals = max_signals
+        
+    def update_signal(self, symbol: str, direction: SignalDirection, confidence: float, timestamp: datetime = None):
+        """Update signal for a symbol"""
+        if timestamp is None:
+            timestamp = datetime.now()
+            
+        if symbol not in self.signal_history:
+            self.signal_history[symbol] = collections.deque(maxlen=self.max_signals)
+        
+        self.signal_history[symbol].append((direction, confidence, timestamp))
+    
+    def get_current_direction(self, symbol: str) -> SignalDirection:
+        """Get current directional bias"""
+        if symbol not in self.signal_history or not self.signal_history[symbol]:
+            return SignalDirection.NEUTRAL
+        return self.signal_history[symbol][-1][0]
+    
+    def get_directional_strength(self, symbol: str) -> float:
+        """Get strength of directional bias (0-1)"""
+        if symbol not in self.signal_history or not self.signal_history[symbol]:
+            return 0.0
+        
+        recent_signals = list(self.signal_history[symbol])
+        if not recent_signals:
+            return 0.0
+        
+        # Calculate consensus strength
+        buy_count = sum(1 for sig, _, _ in recent_signals if sig == SignalDirection.BUY)
+        sell_count = sum(1 for sig, _, _ in recent_signals if sig == SignalDirection.SELL)
+        neutral_count = sum(1 for sig, _, _ in recent_signals if sig == SignalDirection.NEUTRAL)
+        
+        total = len(recent_signals)
+        if total == 0:
+            return 0.0
+        
+        max_consensus = max(buy_count, sell_count, neutral_count)
+        return max_consensus / total
+    
+    def get_signal_consistency(self, symbol: str) -> str:
+        """Get signal consistency (CONSISTENT, MIXED, VOLATILE)"""
+        if symbol not in self.signal_history or len(self.signal_history[symbol]) < 2:
+            return "MIXED"
+        
+        recent_signals = list(self.signal_history[symbol])
+        directions = [sig for sig, _, _ in recent_signals]
+        
+        unique_directions = len(set(directions))
+        if unique_directions == 1:
+            return "CONSISTENT"
+        elif unique_directions == 2:
+            return "MIXED"
+        else:
+            return "VOLATILE"
+
+class VisualizationAgent:
+    """Agent responsible for formatting and managing visual display"""
+    
+    def __init__(self):
+        self.display_mode = "COMPACT"  # COMPACT, DETAILED
+        self.max_pairs_display = 8
+        
+    def format_pair_display(self, pair_data: CurrencyPairData, confidence: float, 
+                          direction: SignalDirection, strength: float) -> Dict[str, Any]:
+        """Format currency pair data for display"""
+        
+        # Determine display color based on direction and confidence
+        if direction == SignalDirection.BUY:
+            color = "🟢" if confidence > 0.6 else "🟡"
+            direction_text = "BUY"
+        elif direction == SignalDirection.SELL:
+            color = "🔴" if confidence > 0.6 else "🟠" 
+            direction_text = "SELL"
+        else:
+            color = "⚪"
+            direction_text = "WAIT"
+        
+        # Format confidence bar
+        conf_bar = self._create_confidence_bar(confidence)
+        
+        # Format symbol name (remove # suffix)
+        clean_symbol = pair_data.symbol.replace('#', '')
+        
+        return {
+            'symbol': clean_symbol,
+            'color': color,
+            'direction': direction_text,
+            'confidence': confidence,
+            'confidence_bar': conf_bar,
+            'strength': strength,
+            'status': pair_data.analysis_status,
+            'monitoring': pair_data.is_monitoring,
+            'last_update': pair_data.last_signal_time
+        }
+    
+    def _create_confidence_bar(self, confidence: float, width: int = 10) -> str:
+        """Create visual confidence bar"""
+        filled = int(confidence * width)
+        empty = width - filled
+        return "█" * filled + "░" * empty
+    
+    def format_compact_display(self, formatted_pairs: List[Dict[str, Any]]) -> str:
+        """Format pairs for compact display"""
+        if not formatted_pairs:
+            return "No currency pairs being monitored"
+        
+        lines = []
+        lines.append("📊 CURRENCY PAIR ANALYSIS:")
+        
+        # Sort by confidence (highest first)
+        sorted_pairs = sorted(formatted_pairs, key=lambda x: x['confidence'], reverse=True)
+        
+        for pair in sorted_pairs[:self.max_pairs_display]:
+            symbol = pair['symbol']
+            color = pair['color']
+            direction = pair['direction']
+            confidence = pair['confidence']
+            conf_bar = pair['confidence_bar']
+            
+            line = f"{color} {symbol}: {direction} {confidence:.1%} {conf_bar}"
+            lines.append(line)
+        
+        if len(sorted_pairs) > self.max_pairs_display:
+            lines.append(f"... (+{len(sorted_pairs) - self.max_pairs_display} more pairs)")
+        
+        return "\n".join(lines)
 
 # ログをdequeに保存するためのカスタムハンドラ
 class FilteredDequeHandler(logging.Handler):
@@ -85,10 +315,39 @@ class TradingVisualizer:
         self.display_data.strategy_signals = {}
         self.cleanup_counter = 0  # For periodic cleanup
 
+        # Initialize multi-agent system for currency pair analysis
+        self.pair_monitor = PairMonitoringAgent()
+        self.confidence_agent = ConfidenceAgent()
+        self.directional_agent = DirectionalAgent()
+        self.visualization_agent = VisualizationAgent()
+        
+        # Track active symbols from engine
+        self.last_symbol_update = datetime.now()
+        self.symbol_update_interval = timedelta(seconds=30)  # Update symbols every 30 seconds
+        
+        # Initialize with HIGH_PROFIT_SYMBOLS as fallback
+        self._initialize_fallback_symbols()
+
         if self.data_queue:
             logger.info("Visualizer: Signal queue connected successfully")
+            logger.info("Visualizer: Multi-agent currency pair analysis system initialized")
         else:
             logger.warning("Visualizer: No signal queue provided - signals will not be displayed")
+
+    def _initialize_fallback_symbols(self):
+        """Initialize with HIGH_PROFIT_SYMBOLS as fallback"""
+        try:
+            from .trading_config import HIGH_PROFIT_SYMBOLS
+            
+            # Convert HIGH_PROFIT_SYMBOLS to symbol format with #
+            fallback_symbols = [symbol + "#" for symbol in HIGH_PROFIT_SYMBOLS.keys()]
+            
+            if fallback_symbols:
+                self.pair_monitor.update_active_symbols(fallback_symbols)
+                logger.info(f"Visualizer: Initialized with {len(fallback_symbols)} fallback symbols")
+            
+        except Exception as e:
+            logger.error(f"Error initializing fallback symbols: {e}")
 
     def _configure_logging(self):
         """Configure selective logging for visualizer display."""
@@ -154,13 +413,48 @@ class TradingVisualizer:
                 try:
                     signals = self.data_queue.get_nowait()
                     if '_daily_pnl_update' not in signals:
+                        # Check if this is symbol list update
+                        if 'symbol_list' in signals:
+                            symbol_list = signals['symbol_list']
+                            self.pair_monitor.update_active_symbols(symbol_list)
+                            self.last_symbol_update = datetime.now()
+                            continue
+                        
+                        # Process individual signals for currency pair analysis
                         for symbol, data in signals.items():
-                            # Keep only essential data to reduce memory usage
                             if isinstance(data, dict):
+                                # Update agents with signal data
+                                signal_type = data.get('type', 'NONE')
+                                confidence = data.get('confidence', 0)
+                                timestamp_str = data.get('timestamp', datetime.now().isoformat())
+                                
+                                # Parse timestamp
+                                try:
+                                    if isinstance(timestamp_str, str):
+                                        timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                    else:
+                                        timestamp = datetime.now()
+                                except:
+                                    timestamp = datetime.now()
+                                
+                                # Update confidence agent
+                                self.confidence_agent.update_confidence(symbol, confidence, timestamp)
+                                
+                                # Update directional agent
+                                if signal_type == 'BUY':
+                                    direction = SignalDirection.BUY
+                                elif signal_type == 'SELL':
+                                    direction = SignalDirection.SELL
+                                else:
+                                    direction = SignalDirection.NEUTRAL
+                                
+                                self.directional_agent.update_signal(symbol, direction, confidence, timestamp)
+                                
+                                # Keep legacy signal storage for compatibility
                                 filtered_data = {
-                                    'type': data.get('type', 'NONE'),
-                                    'confidence': data.get('confidence', 0),
-                                    'timestamp': data.get('timestamp', datetime.now().isoformat())
+                                    'type': signal_type,
+                                    'confidence': confidence,
+                                    'timestamp': timestamp_str
                                 }
                                 self.display_data.strategy_signals[symbol] = filtered_data
                     processed_count += 1
@@ -179,6 +473,13 @@ class TradingVisualizer:
                     reverse=True
                 )
                 self.display_data.strategy_signals = dict(sorted_signals[:10])
+
+        # Check if we need to update symbol monitoring (fallback mechanism)
+        if datetime.now() - self.last_symbol_update > self.symbol_update_interval:
+            if not self.pair_monitor.monitored_pairs:
+                # Re-initialize if no pairs are being monitored
+                self._initialize_fallback_symbols()
+            self.last_symbol_update = datetime.now()
 
         self.display_data.last_update = datetime.now()
         
@@ -242,7 +543,44 @@ class TradingVisualizer:
             print(f"| Total: {self.format_currency(total_profit)}")
 
     def display_strategy_signals(self):
-        None
+        """Display currency pair analysis using multi-agent system"""
+        try:
+            # Get monitored pairs from the monitoring agent
+            monitored_pairs = self.pair_monitor.get_monitored_pairs()
+            
+            if not monitored_pairs:
+                print("📊 No currency pairs being monitored")
+                return
+            
+            # Format pairs for display
+            formatted_pairs = []
+            for symbol, pair_data in monitored_pairs.items():
+                if pair_data.is_monitoring:
+                    # Get data from agents
+                    confidence = self.confidence_agent.get_current_confidence(symbol)
+                    direction = self.directional_agent.get_current_direction(symbol)
+                    strength = self.directional_agent.get_directional_strength(symbol)
+                    
+                    # Update pair data with latest info
+                    pair_data.confidence = confidence
+                    pair_data.direction = direction
+                    
+                    # Format for display
+                    formatted_pair = self.visualization_agent.format_pair_display(
+                        pair_data, confidence, direction, strength
+                    )
+                    formatted_pairs.append(formatted_pair)
+            
+            # Display formatted pairs
+            if formatted_pairs:
+                display_text = self.visualization_agent.format_compact_display(formatted_pairs)
+                print(display_text)
+            else:
+                print("📊 No active currency pair signals")
+                
+        except Exception as e:
+            logger.error(f"Error displaying strategy signals: {e}")
+            print("📊 Error displaying currency pair analysis")
 
     def display_logs(self):
         """Display the latest log messages efficiently."""

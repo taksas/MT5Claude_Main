@@ -74,6 +74,12 @@ class UltraTradingEngine:
 
         logger.info(f"📊 Monitoring {len(self.tradable_symbols)} symbols")
         
+        # Send symbol list to visualizer
+        if self.signal_queue:
+            self.signal_queue.put({
+                'symbol_list': self.tradable_symbols
+            })
+        
         self.running = True
         
         # Start the main trading loop
@@ -220,12 +226,41 @@ class UltraTradingEngine:
             # Generate signal
             signal = self.strategy.analyze_ultra(symbol, df, current_price)
             
-            # Cache signal for visualization
+            # Cache signal for visualization and send to queue
+            current_time = time.time()
             if signal:
                 self.last_signals[symbol] = {
                     'signal': signal,
-                    'timestamp': time.time()
+                    'timestamp': current_time
                 }
+                
+                # Send detailed signal to visualizer
+                if self.signal_queue:
+                    self.signal_queue.put({
+                        symbol: {
+                            'type': signal.type.value,
+                            'confidence': signal.confidence,
+                            'entry': signal.entry,
+                            'sl': signal.sl,
+                            'tp': signal.tp,
+                            'reason': signal.reason,
+                            'quality': signal.quality,
+                            'timestamp': datetime.now().isoformat(),
+                            'status': 'SIGNAL_GENERATED'
+                        }
+                    })
+            else:
+                # Send monitoring status even when no signal
+                if self.signal_queue and symbol in self.tradable_symbols:
+                    self.signal_queue.put({
+                        symbol: {
+                            'type': 'MONITORING',
+                            'confidence': 0.0,
+                            'entry': current_price if 'current_price' in locals() else 0.0,
+                            'timestamp': datetime.now().isoformat(),
+                            'status': 'ANALYZING'
+                        }
+                    })
             
             return signal
             
