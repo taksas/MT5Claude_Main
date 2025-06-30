@@ -22,21 +22,44 @@ class OrderManagement:
     def place_order(self, signal: Signal, symbol: str, volume: float) -> Optional[int]:
         """Place trading order"""
         try:
+            # Get symbol info for validation
+            symbol_info = self.api_client.get_symbol_info(symbol)
+            if not symbol_info:
+                logger.error(f"Cannot get symbol info for {symbol}")
+                return None
+            
+            # Get current price
+            price_info = self.api_client.get_current_price(symbol)
+            if not price_info:
+                logger.error(f"Cannot get current price for {symbol}")
+                return None
+            
+            current_price = price_info['ask'] if signal.type == SignalType.BUY else price_info['bid']
+            
+            # Validate and adjust stops
+            sl, tp = self._validate_and_adjust_stops(
+                symbol, symbol_info, signal.type, current_price, signal.sl, signal.tp
+            )
+            
             # Prepare order according to API specification
             order = {
                 "action": 1,  # TRADE_ACTION_DEAL (market order)
                 "symbol": symbol,
                 "volume": volume,
                 "type": 0 if signal.type == SignalType.BUY else 1,  # ORDER_TYPE_BUY or ORDER_TYPE_SELL
-                "sl": signal.sl,
-                "tp": signal.tp,
                 "comment": f"Ultra100_{signal.reason[:20]}",
                 "deviation": 20,  # Allow 20 points deviation
                 "magic": 100100  # Magic number for identification
             }
             
+            # Only add sl/tp if they are valid (some brokers don't accept 0)
+            if sl > 0:
+                order["sl"] = sl
+            if tp > 0:
+                order["tp"] = tp
+            
             logger.info(f"📊 Placing {signal.type.value} order for {symbol}")
-            logger.info(f"   Volume: {volume}, Entry: {signal.entry}, SL: {signal.sl}, TP: {signal.tp}")
+            logger.info(f"   Volume: {volume}, Entry: {current_price}, SL: {sl}, TP: {tp}")
             
             ticket = self.api_client.place_order(order)
             
@@ -50,6 +73,77 @@ class OrderManagement:
         except Exception as e:
             logger.error(f"Error placing order for {symbol}: {e}")
             raise
+    
+    def _validate_and_adjust_stops(self, symbol: str, symbol_info: Dict[str, Any], 
+                                   signal_type: SignalType, current_price: float, 
+                                   sl: float, tp: float) -> tuple:
+        """Validate and adjust stop loss and take profit according to MT5 requirements"""
+        try:
+            # Extract symbol properties
+            digits = symbol_info.get('digits', 5)
+            point = symbol_info.get('point', 0.00001)
+            stop_level_points = symbol_info.get('stoplevel', 0)
+            stop_level = stop_level_points * point
+            
+            # Log symbol info for debugging
+            logger.info(f"Symbol info for {symbol}: digits={digits}, point={point}, stop_level_points={stop_level_points}")
+            
+            # Round stops to symbol precision
+            sl = round(sl, digits)
+            tp = round(tp, digits)
+            
+            # Minimum stop distance (if broker requires it)
+            if stop_level > 0:
+                if signal_type == SignalType.BUY:
+                    # For BUY: SL must be below current - stop_level
+                    min_sl_distance = current_price - sl
+                    if min_sl_distance < stop_level:
+                        sl = round(current_price - stop_level - 10 * point, digits)
+                        logger.warning(f"Adjusted SL to {sl} due to stop level requirement")
+                    
+                    # For BUY: TP must be above current + stop_level
+                    min_tp_distance = tp - current_price
+                    if min_tp_distance < stop_level:
+                        tp = round(current_price + stop_level + 10 * point, digits)
+                        logger.warning(f"Adjusted TP to {tp} due to stop level requirement")
+                else:
+                    # For SELL: SL must be above current + stop_level
+                    min_sl_distance = sl - current_price
+                    if min_sl_distance < stop_level:
+                        sl = round(current_price + stop_level + 10 * point, digits)
+                        logger.warning(f"Adjusted SL to {sl} due to stop level requirement")
+                    
+                    # For SELL: TP must be below current - stop_level
+                    min_tp_distance = current_price - tp
+                    if min_tp_distance < stop_level:
+                        tp = round(current_price - stop_level - 10 * point, digits)
+                        logger.warning(f"Adjusted TP to {tp} due to stop level requirement")
+            
+            # Additional validation: ensure stops are not too far (some brokers limit this)
+            max_distance = current_price * 0.1  # 10% max distance
+            
+            if signal_type == SignalType.BUY:
+                if current_price - sl > max_distance:
+                    sl = round(current_price - max_distance, digits)
+                    logger.warning(f"Adjusted SL to {sl} due to max distance limit")
+                if tp - current_price > max_distance:
+                    tp = round(current_price + max_distance, digits)
+                    logger.warning(f"Adjusted TP to {tp} due to max distance limit")
+            else:
+                if sl - current_price > max_distance:
+                    sl = round(current_price + max_distance, digits)
+                    logger.warning(f"Adjusted SL to {sl} due to max distance limit")
+                if current_price - tp > max_distance:
+                    tp = round(current_price - max_distance, digits)
+                    logger.warning(f"Adjusted TP to {tp} due to max distance limit")
+            
+            logger.info(f"Validated stops for {symbol}: SL={sl}, TP={tp} (digits={digits}, stop_level={stop_level})")
+            return sl, tp
+            
+        except Exception as e:
+            logger.error(f"Error validating stops: {e}")
+            # Return original values if validation fails
+            return round(sl, 5), round(tp, 5)
     
     def manage_positions(self, active_trades: Dict[str, Trade]) -> Dict[str, Any]:
         """Manage open positions"""

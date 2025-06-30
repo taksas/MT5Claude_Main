@@ -59,13 +59,20 @@ class UltraTradingSystem:
                 # Import and run engine
                 logger.info("Starting Ultra Trading Engine...")
                 from components.engine_core import UltraTradingEngine
-                self.engine = UltraTradingEngine()
+                
+                # Create signal queue for engine-visualizer communication
+                signal_queue = None
+                if self.visualize and self.mode == 'engine':
+                    import queue
+                    signal_queue = queue.Queue()
+                
+                self.engine = UltraTradingEngine(signal_queue=signal_queue)
                 
                 if self.visualize and self.mode == 'engine':
                     # Run engine with visualizer in same process
                     logger.info("Starting Visualizer...")
                     from components.visualizer import TradingVisualizer
-                    self.visualizer = TradingVisualizer()
+                    self.visualizer = TradingVisualizer(data_queue=signal_queue)
                     
                     # Start visualizer in thread
                     import threading

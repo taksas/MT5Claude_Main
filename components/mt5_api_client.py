@@ -111,17 +111,29 @@ class MT5APIClient:
     def place_order(self, order: Dict[str, Any]) -> Optional[int]:
         """Place trading order"""
         try:
+            # Log order details for debugging
+            logger.info(f"Sending order request: {order}")
+            
             response = requests.post(
                 f"{self.api_base}/trading/orders",
                 json=order,
                 timeout=10
             )
+            
+            # Log response for debugging
+            logger.info(f"Order response status: {response.status_code}")
+            
             if response.status_code in [200, 201]:
                 data = response.json()
                 # The API returns 'order' field, not 'ticket'
                 return data.get('order') or data.get('ticket')
             else:
-                logger.error(f"Order failed: {response.text}")
+                # Parse error details
+                try:
+                    error_data = response.json()
+                    logger.error(f"Order failed with status {response.status_code}: {error_data}")
+                except:
+                    logger.error(f"Order failed with status {response.status_code}: {response.text}")
             return None
         except Exception as e:
             logger.error(f"Failed to place order: {e}")

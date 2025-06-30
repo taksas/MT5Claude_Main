@@ -51,8 +51,41 @@ class TradingStrategy:
             stats = analysis.get('statistics', {})
             confidence_score = analysis.get('confidence', 0.5)
             
-            # Check if we have a valid signal from the neural network fusion
-            if composite_signal['signal'] in ['strong_buy', 'buy', 'strong_sell', 'sell']:
+            # Enhanced signal generation with neutral handling
+            # First check for explicit signals
+            explicit_signal = composite_signal['signal'] in ['strong_buy', 'buy', 'strong_sell', 'sell']
+            
+            # For neutral signals, check if we can generate a signal based on confidence and strength
+            neutral_signal_force = False
+            if composite_signal['signal'] == 'neutral':
+                signal_strength = composite_signal.get('strength', 0.5)
+                signal_confidence = composite_signal.get('confidence', 0.5)
+                
+                # Generate directional signal if strength deviates significantly from neutral
+                if signal_strength > 0.6:  # Bullish bias
+                    composite_signal['signal'] = 'buy'
+                    neutral_signal_force = True
+                elif signal_strength < 0.4:  # Bearish bias  
+                    composite_signal['signal'] = 'sell'
+                    neutral_signal_force = True
+                elif signal_confidence > 0.7:  # High confidence neutral - still trade
+                    # Use regime trend as backup
+                    if regime['trend'] in ['bullish']:
+                        composite_signal['signal'] = 'buy'
+                        neutral_signal_force = True
+                    elif regime['trend'] in ['bearish']:
+                        composite_signal['signal'] = 'sell'
+                        neutral_signal_force = True
+                elif signal_confidence > 0.5 and regime['momentum'] != 'neutral':
+                    # Use momentum as signal direction
+                    if regime['momentum'] in ['strong_up', 'weak_up']:
+                        composite_signal['signal'] = 'buy'
+                        neutral_signal_force = True
+                    elif regime['momentum'] in ['strong_down', 'weak_down']:
+                        composite_signal['signal'] = 'sell'
+                        neutral_signal_force = True
+            
+            if explicit_signal or neutral_signal_force:
                 # Validate signal with additional checks
                 
                 # 1. Regime alignment check
@@ -93,6 +126,8 @@ class TradingStrategy:
                 
                 # Enhanced reason building
                 reasons = []
+                if neutral_signal_force:
+                    reasons.append("Neutral enhanced")
                 if regime_aligned:
                     reasons.append(f"{regime['trend'].upper()} regime")
                 if mtf_aligned:
@@ -104,8 +139,11 @@ class TradingStrategy:
                     reasons.append("ML prediction aligned")
                 
                 # Feature importance
-                top_feature = max(composite_signal['feature_importance'].items(), key=lambda x: x[1])[0]
-                reasons.append(f"{top_feature} dominant")
+                try:
+                    top_feature = max(composite_signal['feature_importance'].items(), key=lambda x: x[1])[0]
+                    reasons.append(f"{top_feature} dominant")
+                except:
+                    reasons.append("Multi-factor")
                 
                 # Determine signal type and check confidence
                 signal_type = None
