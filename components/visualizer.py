@@ -330,7 +330,7 @@ class TradingVisualizer:
         
         # Track active symbols from engine
         self.last_symbol_update = datetime.now()
-        self.symbol_update_interval = timedelta(seconds=30)  # Update symbols every 30 seconds
+        self.symbol_update_interval = timedelta(minutes=5)  # Only update symbols every 5 minutes
         
         # Initialize with HIGH_PROFIT_SYMBOLS as fallback
         self._initialize_fallback_symbols()
@@ -375,7 +375,8 @@ class TradingVisualizer:
 
     def clear_screen(self):
         """Clear terminal screen"""
-        os.system('cls' if os.name == 'nt' else 'clear')
+        # Use ANSI escape codes for more reliable clearing
+        print('\033[2J\033[H', end='', flush=True)
 
     def format_currency(self, amount: float) -> str:
         """Format currency for display"""
@@ -508,8 +509,8 @@ class TradingVisualizer:
                 )
                 self.display_data.strategy_signals = dict(sorted_signals[:10])
 
-        # Always ensure symbols are being monitored
-        if not self.pair_monitor.monitored_pairs or datetime.now() - self.last_symbol_update > self.symbol_update_interval:
+        # Check if we need to reinitialize (only if no pairs are monitored)
+        if not self.pair_monitor.monitored_pairs:
             # Re-initialize if no pairs are being monitored
             self._initialize_fallback_symbols()
             self.last_symbol_update = datetime.now()

@@ -24,6 +24,7 @@ class UltraTradingSystem:
         self.visualize = visualize
         self.engine = None
         self.visualizer = None
+        self.signal_analyzer = None
         self.shutdown = False
         
     def signal_handler(self, signum, frame):
@@ -60,22 +61,27 @@ class UltraTradingSystem:
                 logger.info("Starting Ultra Trading Engine...")
                 from components.engine_core import UltraTradingEngine
                 
-                # Create signal queue for engine-visualizer communication
-                signal_queue = None
+                self.engine = UltraTradingEngine()
+                
                 if self.visualize and self.mode == 'engine':
+                    # Run visualizer with separate signal analyzer
+                    logger.info("Starting Visualizer with Signal Analyzer...")
                     import queue
-                    signal_queue = queue.Queue()
-                
-                self.engine = UltraTradingEngine(signal_queue=signal_queue)
-                
-                if self.visualize and self.mode == 'engine':
-                    # Run engine with visualizer in same process
-                    logger.info("Starting Visualizer...")
+                    import threading
                     from components.visualizer import TradingVisualizer
-                    self.visualizer = TradingVisualizer(data_queue=signal_queue)
+                    from components.signal_analyzer import SignalAnalyzer
+                    
+                    # Create shared queue
+                    signal_queue = queue.Queue()
+                    
+                    # Start signal analyzer in thread
+                    self.signal_analyzer = SignalAnalyzer(signal_queue)
+                    analyzer_thread = threading.Thread(target=self.signal_analyzer.start)
+                    analyzer_thread.daemon = True
+                    analyzer_thread.start()
                     
                     # Start visualizer in thread
-                    import threading
+                    self.visualizer = TradingVisualizer(data_queue=signal_queue)
                     viz_thread = threading.Thread(target=self.visualizer.start)
                     viz_thread.daemon = True
                     viz_thread.start()
@@ -84,10 +90,24 @@ class UltraTradingSystem:
                 self.engine.start()
                 
             elif self.mode == 'visualizer':
-                # Run visualizer only
+                # Run visualizer with signal analyzer
                 logger.info("Starting Visualizer Only Mode...")
+                import queue
+                import threading
                 from components.visualizer import TradingVisualizer
-                self.visualizer = TradingVisualizer()
+                from components.signal_analyzer import SignalAnalyzer
+                
+                # Create shared queue
+                signal_queue = queue.Queue()
+                
+                # Start signal analyzer
+                signal_analyzer = SignalAnalyzer(signal_queue)
+                analyzer_thread = threading.Thread(target=signal_analyzer.start)
+                analyzer_thread.daemon = True
+                analyzer_thread.start()
+                
+                # Start visualizer
+                self.visualizer = TradingVisualizer(data_queue=signal_queue)
                 self.visualizer.start()
                 
             elif self.mode == 'both':
@@ -141,6 +161,12 @@ class UltraTradingSystem:
                 self.visualizer.stop()
             except Exception as e:
                 logger.error(f"Error stopping visualizer: {e}")
+        
+        if self.signal_analyzer:
+            try:
+                self.signal_analyzer.stop()
+            except Exception as e:
+                logger.error(f"Error stopping signal analyzer: {e}")
                 
         logger.info("System stopped")
 

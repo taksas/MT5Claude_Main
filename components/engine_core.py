@@ -22,7 +22,7 @@ from .order_management import OrderManagement
 logger = logging.getLogger('UltraTradingEngine')
 
 class UltraTradingEngine:
-    def __init__(self, signal_queue: Optional[queue.Queue] = None):
+    def __init__(self):
         # Initialize components
         self.api_client = MT5APIClient(CONFIG["API_BASE"])
         self.market_data = MarketData(self.api_client)
@@ -34,9 +34,6 @@ class UltraTradingEngine:
         # Configuration
         self.config = CONFIG
         self.timezone = pytz.timezone(CONFIG["TIMEZONE"])
-        
-        # Communication queue for visualizer
-        self.signal_queue = signal_queue
         
         # State management
         self.active_trades = {}
@@ -73,12 +70,6 @@ class UltraTradingEngine:
             return False
 
         logger.info(f"📊 Monitoring {len(self.tradable_symbols)} symbols")
-        
-        # Send symbol list to visualizer
-        if self.signal_queue:
-            self.signal_queue.put({
-                'symbol_list': self.tradable_symbols
-            })
         
         self.running = True
         
@@ -136,13 +127,12 @@ class UltraTradingEngine:
             # Manage existing positions (always do this)
             self._manage_positions()
             
-            # Check trading hours
-            if not self._is_trading_hours():
-                return
+            # Trading hours check removed - analyze 24/7
             
             # Forced trading removed - only trade based on indicators
             
-            # Always analyze symbols for visualizer updates
+            # Always analyze symbols for trading opportunities
+            # Signal analysis should continue regardless of account status
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = []
                 for symbol in self.tradable_symbols[:self.config["MAX_SYMBOLS"]]:
@@ -250,68 +240,19 @@ class UltraTradingEngine:
             # Generate signal
             signal = self.strategy.analyze_ultra(symbol, df, current_price)
             
-            # Cache signal for visualization and send to queue
+            # Cache signal for later use
             current_time = time.time()
             if signal:
                 self.last_signals[symbol] = {
                     'signal': signal,
                     'timestamp': current_time
                 }
-                
-                # Send detailed signal to visualizer
-                if self.signal_queue:
-                    self.signal_queue.put({
-                        symbol: {
-                            'type': signal.type.value,
-                            'confidence': signal.confidence,
-                            'entry': signal.entry,
-                            'sl': signal.sl,
-                            'tp': signal.tp,
-                            'reason': signal.reason,
-                            'quality': signal.quality,
-                            'timestamp': datetime.now().isoformat(),
-                            'status': 'SIGNAL_GENERATED'
-                        }
-                    })
-            else:
-                # Always send current analysis status for real-time updates
-                if self.signal_queue:
-                    # Get latest market metrics from strategy
-                    try:
-                        latest_metrics = getattr(self.strategy, 'last_metrics', {})
-                        symbol_metrics = latest_metrics.get(symbol, {})
-                        confidence = symbol_metrics.get('confidence', 0.0)
-                    except:
-                        confidence = 0.0
-                    
-                    self.signal_queue.put({
-                        symbol: {
-                            'type': 'MONITORING',
-                            'confidence': confidence,
-                            'entry': current_price if 'current_price' in locals() else 0.0,
-                            'timestamp': datetime.now().isoformat(),
-                            'status': 'ANALYZING',
-                            'metrics': symbol_metrics if 'symbol_metrics' in locals() else {}
-                        }
-                    })
             
             return signal
             
         except Exception as e:
             logger.error(f"Error analyzing {symbol}: {e}")
             # Don't raise - continue analyzing other symbols
-            # Send error status to visualizer
-            if self.signal_queue and symbol in self.tradable_symbols:
-                self.signal_queue.put({
-                    symbol: {
-                        'type': 'ERROR',
-                        'confidence': 0.0,
-                        'entry': 0.0,
-                        'timestamp': datetime.now().isoformat(),
-                        'status': 'ANALYSIS_ERROR',
-                        'error': str(e)
-                    }
-                })
             return None
     
     def _execute_signal(self, symbol: str, signal: Signal):
@@ -358,36 +299,9 @@ class UltraTradingEngine:
                 self.daily_trades += 1
                 self.trades_this_hour += 1
                 
-                # Send to visualizer
-                if self.signal_queue:
-                    self.signal_queue.put({
-                        'type': 'trade',
-                        'symbol': symbol,
-                        'signal': signal,
-                        'volume': volume,
-                        'ticket': ticket,
-                        'timestamp': time.time()
-                    })
-                
         except Exception as e:
             logger.error(f"Error executing signal for {symbol}: {e}")
             # Don't raise - let the engine continue with other symbols
-            # Send error status to visualizer
-            if self.signal_queue:
-                self.signal_queue.put({
-                    symbol: {
-                        'type': signal.type.value,
-                        'confidence': signal.confidence,
-                        'entry': signal.entry,
-                        'sl': signal.sl,
-                        'tp': signal.tp,
-                        'reason': signal.reason,
-                        'quality': signal.quality,
-                        'timestamp': datetime.now().isoformat(),
-                        'status': 'ORDER_FAILED',
-                        'error': str(e)
-                    }
-                })
     
     def _manage_positions(self):
         """Manage open positions"""
