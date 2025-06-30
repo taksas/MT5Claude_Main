@@ -132,6 +132,13 @@ class MT5APIClient:
                 try:
                     error_data = response.json()
                     logger.error(f"Order failed with status {response.status_code}: {error_data}")
+                    
+                    # Check for specific error codes
+                    if "detail" in error_data:
+                        detail = error_data["detail"]
+                        if "Invalid stops" in detail or "retcode: 10016" in detail:
+                            logger.error("MT5 rejected stops - broker requires different stop levels")
+                            logger.error(f"Order details that failed: {order}")
                 except:
                     logger.error(f"Order failed with status {response.status_code}: {response.text}")
             return None

@@ -59,7 +59,9 @@ class OrderManagement:
                 order["tp"] = tp
             
             logger.info(f"📊 Placing {signal.type.value} order for {symbol}")
-            logger.info(f"   Volume: {volume}, Entry: {current_price}, SL: {sl}, TP: {tp}")
+            logger.info(f"   Volume: {volume}, Entry: {current_price}")
+            logger.info(f"   Validated SL: {sl} (original: {signal.sl})")
+            logger.info(f"   Validated TP: {tp} (original: {signal.tp})")
             
             ticket = self.api_client.place_order(order)
             
@@ -85,39 +87,57 @@ class OrderManagement:
             stop_level_points = symbol_info.get('stoplevel', 0)
             stop_level = stop_level_points * point
             
-            # Log symbol info for debugging
-            logger.info(f"Symbol info for {symbol}: digits={digits}, point={point}, stop_level_points={stop_level_points}")
+            # Get current bid/ask for more accurate validation
+            price_info = self.api_client.get_current_price(symbol)
+            bid = price_info.get('bid', current_price)
+            ask = price_info.get('ask', current_price)
+            
+            # Log detailed symbol info for debugging
+            logger.info(f"Symbol {symbol} validation info:")
+            logger.info(f"  - Digits: {digits}, Point: {point}")
+            logger.info(f"  - Stop level points: {stop_level_points}, Stop level: {stop_level}")
+            logger.info(f"  - Current bid: {bid}, ask: {ask}")
+            logger.info(f"  - Original SL: {sl}, TP: {tp}")
             
             # Round stops to symbol precision
             sl = round(sl, digits)
             tp = round(tp, digits)
             
-            # Minimum stop distance (if broker requires it)
-            if stop_level > 0:
-                if signal_type == SignalType.BUY:
-                    # For BUY: SL must be below current - stop_level
-                    min_sl_distance = current_price - sl
-                    if min_sl_distance < stop_level:
-                        sl = round(current_price - stop_level - 10 * point, digits)
-                        logger.warning(f"Adjusted SL to {sl} due to stop level requirement")
-                    
-                    # For BUY: TP must be above current + stop_level
-                    min_tp_distance = tp - current_price
-                    if min_tp_distance < stop_level:
-                        tp = round(current_price + stop_level + 10 * point, digits)
-                        logger.warning(f"Adjusted TP to {tp} due to stop level requirement")
-                else:
-                    # For SELL: SL must be above current + stop_level
-                    min_sl_distance = sl - current_price
-                    if min_sl_distance < stop_level:
-                        sl = round(current_price + stop_level + 10 * point, digits)
-                        logger.warning(f"Adjusted SL to {sl} due to stop level requirement")
-                    
-                    # For SELL: TP must be below current - stop_level
-                    min_tp_distance = current_price - tp
-                    if min_tp_distance < stop_level:
-                        tp = round(current_price - stop_level - 10 * point, digits)
-                        logger.warning(f"Adjusted TP to {tp} due to stop level requirement")
+            # Add minimum buffer based on spread and broker requirements
+            spread = ask - bid
+            min_buffer = max(stop_level, spread * 2, 20 * point)  # At least 20 points or 2x spread
+            
+            # Validate and adjust stops with proper distance
+            if signal_type == SignalType.BUY:
+                # For BUY orders: use ASK for entry, so stops are relative to ASK
+                reference_price = ask
+                
+                # SL must be below bid - min_buffer
+                max_sl = bid - min_buffer
+                if sl >= max_sl:
+                    sl = round(max_sl - 10 * point, digits)
+                    logger.warning(f"Adjusted BUY SL from {sl} to {sl} (below bid {bid} - buffer {min_buffer})")
+                
+                # TP must be above ask + min_buffer
+                min_tp = ask + min_buffer
+                if tp <= min_tp:
+                    tp = round(min_tp + 10 * point, digits)
+                    logger.warning(f"Adjusted BUY TP from {tp} to {tp} (above ask {ask} + buffer {min_buffer})")
+            else:
+                # For SELL orders: use BID for entry, so stops are relative to BID
+                reference_price = bid
+                
+                # SL must be above ask + min_buffer
+                min_sl = ask + min_buffer
+                if sl <= min_sl:
+                    sl = round(min_sl + 10 * point, digits)
+                    logger.warning(f"Adjusted SELL SL from {sl} to {sl} (above ask {ask} + buffer {min_buffer})")
+                
+                # TP must be below bid - min_buffer
+                max_tp = bid - min_buffer
+                if tp >= max_tp:
+                    tp = round(max_tp - 10 * point, digits)
+                    logger.warning(f"Adjusted SELL TP from {tp} to {tp} (below bid {bid} - buffer {min_buffer})")
             
             # Additional validation: ensure stops are not too far (some brokers limit this)
             max_distance = current_price * 0.1  # 10% max distance
@@ -137,13 +157,34 @@ class OrderManagement:
                     tp = round(current_price - max_distance, digits)
                     logger.warning(f"Adjusted TP to {tp} due to max distance limit")
             
-            logger.info(f"Validated stops for {symbol}: SL={sl}, TP={tp} (digits={digits}, stop_level={stop_level})")
+            # Final validation - ensure stops are valid numbers and not zero
+            if sl <= 0 or tp <= 0:
+                logger.error(f"Invalid stops after validation: SL={sl}, TP={tp}")
+                # Use conservative defaults based on ATR
+                atr_estimate = current_price * 0.001  # 0.1% as fallback
+                if signal_type == SignalType.BUY:
+                    sl = round(bid - atr_estimate * 2, digits)
+                    tp = round(ask + atr_estimate * 3, digits)
+                else:
+                    sl = round(ask + atr_estimate * 2, digits)
+                    tp = round(bid - atr_estimate * 3, digits)
+                logger.warning(f"Using fallback stops: SL={sl}, TP={tp}")
+            
+            # Log final validated stops
+            logger.info(f"Final validated stops for {symbol}:")
+            logger.info(f"  - SL: {sl} (distance from entry: {abs(reference_price - sl)/point:.0f} points)")
+            logger.info(f"  - TP: {tp} (distance from entry: {abs(tp - reference_price)/point:.0f} points)")
+            logger.info(f"  - Min required distance: {min_buffer/point:.0f} points")
+            
             return sl, tp
             
         except Exception as e:
             logger.error(f"Error validating stops: {e}")
-            # Return original values if validation fails
-            return round(sl, 5), round(tp, 5)
+            # Return conservative stops if validation fails completely
+            if signal_type == SignalType.BUY:
+                return round(current_price * 0.995, 5), round(current_price * 1.01, 5)
+            else:
+                return round(current_price * 1.005, 5), round(current_price * 0.99, 5)
     
     def manage_positions(self, active_trades: Dict[str, Trade]) -> Dict[str, Any]:
         """Manage open positions"""
