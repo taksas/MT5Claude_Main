@@ -174,6 +174,7 @@ CONFIG = {
     "RISK_PER_METAL": 0.007,  # 0.7% risk for metals
     "RISK_PER_CRYPTO": 0.003,  # 0.3% risk for crypto due to extreme volatility
     "RISK_PER_INDEX": 0.008,  # 0.8% risk for indices (high profit potential)
+    "LOOP_DELAY": 1,  # Main loop delay in seconds
 }
 
 def get_symbol_config(symbol):

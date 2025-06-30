@@ -35,6 +35,9 @@ class TradingStrategy:
             'composite': 2.5
         }
         
+        # Store last metrics for each symbol for visualizer
+        self.last_metrics = {}
+        
     def analyze_ultra(self, symbol: str, df: pd.DataFrame, current_price: float) -> Optional[Signal]:
         """Analyze market with ultra-intelligent indicators for high-precision signals"""
         try:
@@ -48,6 +51,17 @@ class TradingStrategy:
             sentiment = analysis.get('sentiment', {})
             predictions = analysis.get('predictions', {})
             mtf = analysis.get('multi_timeframe', {})
+            
+            # Store metrics for visualizer even when no signal
+            self.last_metrics[symbol] = {
+                'confidence': composite_signal.get('confidence', 0.0),
+                'signal': composite_signal.get('signal', 'neutral'),
+                'regime': regime.get('trend', 'neutral'),
+                'volatility': regime.get('volatility', 'medium'),
+                'momentum': regime.get('momentum', 'neutral'),
+                'patterns': len(patterns),
+                'timestamp': datetime.now().isoformat()
+            }
             stats = analysis.get('statistics', {})
             confidence_score = analysis.get('confidence', 0.5)
             

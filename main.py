@@ -158,8 +158,8 @@ def main():
     
     # Quick launch shortcuts
     if len(sys.argv) == 1:
-        # No arguments - run engine only
-        system = UltraTradingSystem(mode='engine', visualize=False)
+        # No arguments - run engine with visualizer
+        system = UltraTradingSystem(mode='engine', visualize=True)
     else:
         system = UltraTradingSystem(mode=args.mode, visualize=args.visualize)
     

@@ -132,9 +132,8 @@ class UltraTradingEngine:
                 )
                 if not safe:
                     logger.warning(f"⚠️ Account not safe: {reason}")
-                    return
             
-            # Manage existing positions
+            # Manage existing positions (always do this)
             self._manage_positions()
             
             # Check trading hours
@@ -143,21 +142,46 @@ class UltraTradingEngine:
             
             # Forced trading removed - only trade based on indicators
             
-            # Analyze symbols for opportunities
+            # Always analyze symbols for visualizer updates
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = []
                 for symbol in self.tradable_symbols[:self.config["MAX_SYMBOLS"]]:
                     future = executor.submit(self._analyze_symbol, symbol)
                     futures.append((symbol, future))
                 
+                # Collect all signals for batch update
+                batch_signals = {}
                 for symbol, future in futures:
                     try:
                         signal = future.result(timeout=5)
-                        if signal:
-                            self._execute_signal(symbol, signal)
+                        # Signal is sent in _analyze_symbol, no need to handle here
+                        
+                        # Only execute trades if account is safe
+                        if signal and safe:
+                            try:
+                                self._execute_signal(symbol, signal)
+                            except Exception as exec_error:
+                                logger.error(f"Failed to execute signal for {symbol}: {exec_error}")
+                                # Send execution failure to visualizer
+                                if self.signal_queue:
+                                    self.signal_queue.put({
+                                        symbol: {
+                                            'type': signal.type.value,
+                                            'confidence': signal.confidence,
+                                            'entry': signal.entry,
+                                            'sl': signal.sl,
+                                            'tp': signal.tp,
+                                            'reason': signal.reason,
+                                            'quality': signal.quality,
+                                            'timestamp': datetime.now().isoformat(),
+                                            'status': 'EXECUTION_FAILED',
+                                            'error': str(exec_error)
+                                        }
+                                    })
                     except Exception as e:
                         logger.error(f"Error analyzing {symbol}: {e}")
                         # Continue with other symbols but log the failure
+            # This section was moved up and should be removed
             
         except Exception as e:
             logger.error(f"Error in trading loop: {e}")
@@ -250,15 +274,24 @@ class UltraTradingEngine:
                         }
                     })
             else:
-                # Send monitoring status even when no signal
-                if self.signal_queue and symbol in self.tradable_symbols:
+                # Always send current analysis status for real-time updates
+                if self.signal_queue:
+                    # Get latest market metrics from strategy
+                    try:
+                        latest_metrics = getattr(self.strategy, 'last_metrics', {})
+                        symbol_metrics = latest_metrics.get(symbol, {})
+                        confidence = symbol_metrics.get('confidence', 0.0)
+                    except:
+                        confidence = 0.0
+                    
                     self.signal_queue.put({
                         symbol: {
                             'type': 'MONITORING',
-                            'confidence': 0.0,
+                            'confidence': confidence,
                             'entry': current_price if 'current_price' in locals() else 0.0,
                             'timestamp': datetime.now().isoformat(),
-                            'status': 'ANALYZING'
+                            'status': 'ANALYZING',
+                            'metrics': symbol_metrics if 'symbol_metrics' in locals() else {}
                         }
                     })
             
@@ -266,7 +299,20 @@ class UltraTradingEngine:
             
         except Exception as e:
             logger.error(f"Error analyzing {symbol}: {e}")
-            raise
+            # Don't raise - continue analyzing other symbols
+            # Send error status to visualizer
+            if self.signal_queue and symbol in self.tradable_symbols:
+                self.signal_queue.put({
+                    symbol: {
+                        'type': 'ERROR',
+                        'confidence': 0.0,
+                        'entry': 0.0,
+                        'timestamp': datetime.now().isoformat(),
+                        'status': 'ANALYSIS_ERROR',
+                        'error': str(e)
+                    }
+                })
+            return None
     
     def _execute_signal(self, symbol: str, signal: Signal):
         """Execute trading signal"""
@@ -325,7 +371,23 @@ class UltraTradingEngine:
                 
         except Exception as e:
             logger.error(f"Error executing signal for {symbol}: {e}")
-            raise
+            # Don't raise - let the engine continue with other symbols
+            # Send error status to visualizer
+            if self.signal_queue:
+                self.signal_queue.put({
+                    symbol: {
+                        'type': signal.type.value,
+                        'confidence': signal.confidence,
+                        'entry': signal.entry,
+                        'sl': signal.sl,
+                        'tp': signal.tp,
+                        'reason': signal.reason,
+                        'quality': signal.quality,
+                        'timestamp': datetime.now().isoformat(),
+                        'status': 'ORDER_FAILED',
+                        'error': str(e)
+                    }
+                })
     
     def _manage_positions(self):
         """Manage open positions"""
@@ -344,4 +406,4 @@ class UltraTradingEngine:
             
         except Exception as e:
             logger.error(f"Error managing positions: {e}")
-            raise
+            # Don't raise - continue trading even if position management fails

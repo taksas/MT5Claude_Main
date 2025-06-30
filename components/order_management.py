@@ -217,9 +217,13 @@ class OrderManagement:
                 
                 # Check for early exit conditions
                 if self._should_close_early(trade, current_price, profit):
-                    if self.close_position(ticket):
-                        results['closed'].append(ticket)
-                        logger.info(f"🔒 Closed position {ticket} early")
+                    try:
+                        if self.close_position(ticket):
+                            results['closed'].append(ticket)
+                            logger.info(f"🔒 Closed position {ticket} early")
+                    except Exception as close_error:
+                        logger.error(f"Failed to close position {ticket}: {close_error}")
+                        results['errors'].append(f"Position {ticket}: {str(close_error)}")
                         
         except Exception as e:
             logger.error(f"Error managing positions: {e}")
@@ -230,14 +234,37 @@ class OrderManagement:
     def close_position(self, ticket: int) -> bool:
         """Close a specific position"""
         try:
+            # First check if position exists
+            position_info = self.get_position_info(ticket)
+            if not position_info:
+                logger.warning(f"Position {ticket} not found - may already be closed")
+                return True  # Consider it successful if already closed
+            
+            logger.info(f"Attempting to close position {ticket} for {position_info.get('symbol')}")
             success = self.api_client.close_position(ticket)
+            
             if success:
                 logger.info(f"✅ Position {ticket} closed successfully")
             else:
                 logger.error(f"❌ Failed to close position {ticket}")
+                # Try to get updated position info to understand the failure
+                updated_info = self.get_position_info(ticket)
+                if not updated_info:
+                    logger.info(f"Position {ticket} appears to be closed despite error response")
+                    return True
+                else:
+                    logger.error(f"Position {ticket} still open: {updated_info}")
+            
             return success
         except Exception as e:
             logger.error(f"Error closing position {ticket}: {e}")
+            # Check if position still exists after error
+            try:
+                if not self.get_position_info(ticket):
+                    logger.info(f"Position {ticket} closed despite error")
+                    return True
+            except:
+                pass
             raise
     
     def _move_breakeven(self, ticket: int, trade: Trade, current_price: float) -> bool:
@@ -329,7 +356,8 @@ class OrderManagement:
             return None
         except Exception as e:
             logger.error(f"Error getting position info for {ticket}: {e}")
-            raise
+            # Don't raise - return None to indicate position not found
+            return None
     
     def close_all_positions(self) -> int:
         """Close all open positions"""

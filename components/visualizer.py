@@ -262,6 +262,13 @@ class VisualizationAgent:
             conf_bar = pair['confidence_bar']
             
             line = f"{color} {symbol}: {direction} {confidence:.1%} {conf_bar}"
+            
+            # Add error indicator if present
+            if 'error' in pair:
+                line += f" ⚠️"
+            elif pair.get('status') == 'ERROR':
+                line += f" ❌"
+            
             lines.append(line)
         
         if len(sorted_pairs) > self.max_pairs_display:
@@ -405,9 +412,9 @@ class TradingVisualizer:
         self.display_data.positions = self.get_positions()
 
         if self.data_queue:
-            # Process limited number of queue items to prevent memory buildup
+            # Process all available queue items for real-time updates
             processed_count = 0
-            max_process_per_cycle = 5
+            max_process_per_cycle = 20  # Increased to handle more updates
             
             while not self.data_queue.empty() and processed_count < max_process_per_cycle:
                 try:
@@ -418,15 +425,18 @@ class TradingVisualizer:
                             symbol_list = signals['symbol_list']
                             self.pair_monitor.update_active_symbols(symbol_list)
                             self.last_symbol_update = datetime.now()
+                            logger.info(f"Updated active symbols: {len(symbol_list)} symbols")
                             continue
                         
-                        # Process individual signals for currency pair analysis
+                        # Process batch updates (multiple symbols at once)
                         for symbol, data in signals.items():
                             if isinstance(data, dict):
                                 # Update agents with signal data
                                 signal_type = data.get('type', 'NONE')
                                 confidence = data.get('confidence', 0)
                                 timestamp_str = data.get('timestamp', datetime.now().isoformat())
+                                status = data.get('status', 'UNKNOWN')
+                                error = data.get('error', None)
                                 
                                 # Parse timestamp
                                 try:
@@ -437,7 +447,7 @@ class TradingVisualizer:
                                 except:
                                     timestamp = datetime.now()
                                 
-                                # Update confidence agent
+                                # Always update agents even for MONITORING status
                                 self.confidence_agent.update_confidence(symbol, confidence, timestamp)
                                 
                                 # Update directional agent
@@ -450,12 +460,36 @@ class TradingVisualizer:
                                 
                                 self.directional_agent.update_signal(symbol, direction, confidence, timestamp)
                                 
+                                # Update monitoring status for the symbol
+                                if symbol in self.pair_monitor.monitored_pairs:
+                                    pair_data = self.pair_monitor.monitored_pairs[symbol]
+                                    pair_data.last_signal_time = timestamp
+                                    pair_data.confidence = confidence
+                                    pair_data.direction = direction
+                                    
+                                    # Update analysis status based on signal
+                                    if status == 'ACTIVE' or signal_type == 'MONITORING':
+                                        pair_data.analysis_status = 'ANALYZING'
+                                    elif status in ['EXECUTION_FAILED', 'ORDER_FAILED', 'ANALYSIS_ERROR']:
+                                        pair_data.analysis_status = 'ERROR'
+                                    elif signal_type in ['BUY', 'SELL']:
+                                        pair_data.analysis_status = 'TRADING'
+                                
                                 # Keep legacy signal storage for compatibility
                                 filtered_data = {
                                     'type': signal_type,
                                     'confidence': confidence,
-                                    'timestamp': timestamp_str
+                                    'timestamp': timestamp_str,
+                                    'status': status
                                 }
+                                
+                                # Add error indicator if present
+                                if error:
+                                    filtered_data['error'] = error[:50]  # Truncate long errors
+                                    # Log errors for debugging
+                                    if status in ['EXECUTION_FAILED', 'ORDER_FAILED']:
+                                        logger.warning(f"Order failed for {symbol}: {error}")
+                                
                                 self.display_data.strategy_signals[symbol] = filtered_data
                     processed_count += 1
                 except queue.Empty:
@@ -474,11 +508,10 @@ class TradingVisualizer:
                 )
                 self.display_data.strategy_signals = dict(sorted_signals[:10])
 
-        # Check if we need to update symbol monitoring (fallback mechanism)
-        if datetime.now() - self.last_symbol_update > self.symbol_update_interval:
-            if not self.pair_monitor.monitored_pairs:
-                # Re-initialize if no pairs are being monitored
-                self._initialize_fallback_symbols()
+        # Always ensure symbols are being monitored
+        if not self.pair_monitor.monitored_pairs or datetime.now() - self.last_symbol_update > self.symbol_update_interval:
+            # Re-initialize if no pairs are being monitored
+            self._initialize_fallback_symbols()
             self.last_symbol_update = datetime.now()
 
         self.display_data.last_update = datetime.now()
@@ -565,10 +598,22 @@ class TradingVisualizer:
                     pair_data.confidence = confidence
                     pair_data.direction = direction
                     
+                    # Check for any errors in signal data
+                    signal_data = self.display_data.strategy_signals.get(symbol, {})
+                    if signal_data.get('status') in ['EXECUTION_FAILED', 'ORDER_FAILED']:
+                        pair_data.analysis_status = 'ERROR'
+                    elif signal_data.get('status') == 'ANALYSIS_ERROR':
+                        pair_data.analysis_status = 'ANALYSIS_ERROR'
+                    
                     # Format for display
                     formatted_pair = self.visualization_agent.format_pair_display(
                         pair_data, confidence, direction, strength
                     )
+                    
+                    # Add error info if present
+                    if 'error' in signal_data:
+                        formatted_pair['error'] = signal_data['error']
+                    
                     formatted_pairs.append(formatted_pair)
             
             # Display formatted pairs

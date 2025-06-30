@@ -160,25 +160,52 @@ class MT5APIClient:
                     if 'positions' in data:
                         return data['positions']
                     else:
-                        raise ValueError(f"Unexpected positions data format: {data}")
+                        logger.warning(f"Unexpected positions data format: {data}")
+                        return []  # Return empty list instead of raising
                 else:
-                    raise ValueError(f"Invalid positions data type: {type(data)}")
+                    logger.warning(f"Invalid positions data type: {type(data)}")
+                    return []  # Return empty list instead of raising
             else:
-                raise ValueError(f"API returned error: {response.status_code}")
+                logger.error(f"Get positions failed with status {response.status_code}")
+                try:
+                    error_data = response.json()
+                    logger.error(f"Error details: {error_data}")
+                except:
+                    logger.error(f"Error response: {response.text}")
+                return []  # Return empty list on error
         except Exception as e:
             logger.error(f"Failed to get positions: {e}")
-            raise
+            # Return empty list instead of raising to prevent crashes
+            return []
     
     def close_position(self, ticket: int) -> bool:
         """Close a specific position"""
         try:
+            # According to API docs, we can specify volume and deviation
             response = requests.delete(
                 f"{self.api_base}/trading/positions/{ticket}",
-                timeout=5
+                json={"deviation": 20},  # Allow 20 points deviation
+                timeout=10
             )
-            return response.status_code == 200
+            
+            # Log response for debugging
+            logger.info(f"Close position response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                logger.info(f"✅ Successfully closed position {ticket}")
+                return True
+            else:
+                # Parse error details
+                try:
+                    error_data = response.json()
+                    logger.error(f"Failed to close position {ticket}: {error_data}")
+                    if "detail" in error_data:
+                        logger.error(f"Error detail: {error_data['detail']}")
+                except:
+                    logger.error(f"Failed to close position {ticket}: {response.text}")
+                return False
         except Exception as e:
-            logger.error(f"Failed to close position {ticket}: {e}")
+            logger.error(f"Exception closing position {ticket}: {e}")
             raise
     
     def modify_position(self, ticket: int, sl: float, tp: float) -> bool:
