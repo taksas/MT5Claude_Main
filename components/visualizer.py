@@ -485,7 +485,7 @@ class TradingVisualizer:
                                 
                                 # Add error indicator if present
                                 if error:
-                                    filtered_data['error'] = error[:50]  # Truncate long errors
+                                    filtered_data['error'] = error  # Full error message
                                     # Log errors for debugging
                                     if status in ['EXECUTION_FAILED', 'ORDER_FAILED']:
                                         logger.warning(f"Order failed for {symbol}: {error}")
@@ -635,9 +635,7 @@ class TradingVisualizer:
             # Convert to list once and display
             recent_logs = list(self.log_messages)
             for msg in recent_logs[-CONFIG["LOG_MAX_LINES"]:]:  # Show only most recent
-                # Truncate long messages
-                if len(msg) > 80:
-                    msg = msg[:77] + "..."
+                # Display full message without truncation
                 print(msg)
 
 
