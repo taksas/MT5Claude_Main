@@ -212,14 +212,6 @@ class UltraTradingEngine:
     def _analyze_symbol(self, symbol: str) -> Optional[Signal]:
         """Analyze a symbol for trading opportunities"""
         try:
-            # Check if we can trade this symbol
-            can_trade, reason = self.risk_manager.can_trade_symbol(
-                symbol, self.active_trades, self.last_trade_time
-            )
-            if not can_trade:
-                logger.debug(f"Cannot trade {symbol}: {reason}")
-                return None
-            
             # Check spread
             spread_ok, spread = self.market_data.check_spread(symbol)
             if not spread_ok and not self.config["IGNORE_SPREAD"]:
@@ -240,9 +232,17 @@ class UltraTradingEngine:
             # Generate signal
             signal = self.strategy.analyze_ultra(symbol, df, current_price)
             
-            # Cache signal for later use
-            current_time = time.time()
+            # If we have a signal, check if we can trade this symbol with this signal type
             if signal:
+                can_trade, reason = self.risk_manager.can_trade_symbol(
+                    symbol, self.active_trades, self.last_trade_time, signal.type.value
+                )
+                if not can_trade:
+                    logger.debug(f"Cannot trade {symbol}: {reason}")
+                    return None
+                
+                # Cache signal for later use
+                current_time = time.time()
                 self.last_signals[symbol] = {
                     'signal': signal,
                     'timestamp': current_time

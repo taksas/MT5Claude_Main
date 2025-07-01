@@ -189,22 +189,22 @@ class TradingStrategy:
                             pattern_sl = best_pattern['stop_loss']
                             pattern_tp = best_pattern['target_price']
                     
-                    # Adjust for instrument type
+                    # Adjust for instrument type - 10x wider SL/TP for less sensitivity
                     if instrument_type == 'exotic':
-                        sl_distance = atr * 2.5
-                        tp_distance = atr * 5.0
+                        sl_distance = atr * 25.0  # Was 2.5, now 10x
+                        tp_distance = atr * 50.0  # Was 5.0, now 10x
                     elif instrument_type == 'metal':
-                        sl_distance = atr * 2.0
-                        tp_distance = atr * 4.0
+                        sl_distance = atr * 20.0  # Was 2.0, now 10x
+                        tp_distance = atr * 40.0  # Was 4.0, now 10x
                     elif instrument_type == 'crypto':
-                        sl_distance = atr * 3.0
-                        tp_distance = atr * 6.0
+                        sl_distance = atr * 30.0  # Was 3.0, now 10x
+                        tp_distance = atr * 60.0  # Was 6.0, now 10x
                     elif instrument_type == 'index':
-                        sl_distance = atr * 1.5
-                        tp_distance = atr * 3.0
+                        sl_distance = atr * 15.0  # Was 1.5, now 10x
+                        tp_distance = atr * 30.0  # Was 3.0, now 10x
                     else:  # Major pairs
-                        sl_distance = atr * 2.0
-                        tp_distance = atr * 3.0
+                        sl_distance = atr * 20.0  # Was 2.0, now 10x
+                        tp_distance = atr * 30.0  # Was 3.0, now 10x
                     
                     # Calculate SL/TP with pattern priority
                     if signal_type == SignalType.BUY:

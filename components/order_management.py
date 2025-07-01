@@ -105,7 +105,7 @@ class OrderManagement:
             
             # Add minimum buffer based on spread and broker requirements
             spread = ask - bid
-            min_buffer = max(stop_level, spread * 2, 20 * point)  # At least 20 points or 2x spread
+            min_buffer = max(stop_level, spread * 10, 100 * point)  # Increased: At least 100 points or 10x spread
             
             # Validate and adjust stops with proper distance
             if signal_type == SignalType.BUY:
@@ -161,7 +161,7 @@ class OrderManagement:
             if sl <= 0 or tp <= 0:
                 logger.error(f"Invalid stops after validation: SL={sl}, TP={tp}")
                 # Use conservative defaults based on ATR
-                atr_estimate = current_price * 0.001  # 0.1% as fallback
+                atr_estimate = current_price * 0.01  # 1% as fallback (10x increase)
                 if signal_type == SignalType.BUY:
                     sl = round(bid - atr_estimate * 2, digits)
                     tp = round(ask + atr_estimate * 3, digits)
@@ -182,9 +182,9 @@ class OrderManagement:
             logger.error(f"Error validating stops: {e}")
             # Return conservative stops if validation fails completely
             if signal_type == SignalType.BUY:
-                return round(current_price * 0.995, 5), round(current_price * 1.01, 5)
+                return round(current_price * 0.95, 5), round(current_price * 1.1, 5)  # 5% SL, 10% TP
             else:
-                return round(current_price * 1.005, 5), round(current_price * 0.99, 5)
+                return round(current_price * 1.05, 5), round(current_price * 0.9, 5)  # 5% SL, 10% TP
     
     def manage_positions(self, active_trades: Dict[str, Trade]) -> Dict[str, Any]:
         """Manage open positions"""
@@ -215,15 +215,15 @@ class OrderManagement:
                         results['modified'].append(ticket)
                         logger.info(f"🎯 Moved position {ticket} to breakeven")
                 
-                # Check for early exit conditions
-                if self._should_close_early(trade, current_price, profit):
-                    try:
-                        if self.close_position(ticket):
-                            results['closed'].append(ticket)
-                            logger.info(f"🔒 Closed position {ticket} early")
-                    except Exception as close_error:
-                        logger.error(f"Failed to close position {ticket}: {close_error}")
-                        results['errors'].append(f"Position {ticket}: {str(close_error)}")
+                # Check for early exit conditions - DISABLED for now to prevent premature closes
+                # if self._should_close_early(trade, current_price, profit):
+                #     try:
+                #         if self.close_position(ticket):
+                #             results['closed'].append(ticket)
+                #             logger.info(f"🔒 Closed position {ticket} early")
+                #     except Exception as close_error:
+                #         logger.error(f"Failed to close position {ticket}: {close_error}")
+                #         results['errors'].append(f"Position {ticket}: {str(close_error)}")
                         
         except Exception as e:
             logger.error(f"Error managing positions: {e}")
@@ -271,7 +271,7 @@ class OrderManagement:
         """Move stop loss to breakeven"""
         try:
             # Calculate new stop loss (entry + small buffer for costs)
-            spread_buffer = abs(trade.entry_price * 0.0001)  # 1 pip buffer
+            spread_buffer = abs(trade.entry_price * 0.001)  # 10 pip buffer (was 1 pip)
             
             if trade.type == "BUY":
                 new_sl = trade.entry_price + spread_buffer
@@ -305,12 +305,12 @@ class OrderManagement:
             # Check if price has moved enough
             if trade.type == "BUY":
                 price_move = current_price - trade.entry_price
-                target_move = (trade.tp - trade.entry_price) * 0.5  # 50% to TP
+                target_move = (trade.tp - trade.entry_price) * 0.8  # 80% to TP (was 50%)
             else:
                 price_move = trade.entry_price - current_price
-                target_move = (trade.entry_price - trade.tp) * 0.5
+                target_move = (trade.entry_price - trade.tp) * 0.8  # 80% to TP (was 50%)
             
-            # Move to BE if reached 50% of target
+            # Move to BE if reached 80% of target - less aggressive
             return price_move >= target_move and trade.sl != trade.entry_price
             
         except Exception as e:
@@ -321,23 +321,23 @@ class OrderManagement:
                            profit: float) -> bool:
         """Check if position should be closed early"""
         try:
-            # Close if position has been open too long (4 hours)
+            # Close if position has been open too long (40 hours - 10x increase)
             time_open = (datetime.now() - trade.entry_time).total_seconds()
-            if time_open > 14400:  # 4 hours
+            if time_open > 144000:  # 40 hours (was 4 hours)
                 return profit > 0  # Only close if in profit
             
-            # Close if reversal detected
+            # Close if reversal detected - 10x less sensitive
             if trade.type == "BUY":
                 # If price drops significantly from high
-                high_since_entry = max(current_price, trade.entry_price * 1.01)
+                high_since_entry = max(current_price, trade.entry_price * 1.1)  # 10% buffer (was 1%)
                 pullback = (high_since_entry - current_price) / high_since_entry
-                if pullback > 0.005:  # 0.5% pullback
+                if pullback > 0.05:  # 5% pullback (was 0.5%)
                     return True
             else:
                 # If price rises significantly from low
-                low_since_entry = min(current_price, trade.entry_price * 0.99)
+                low_since_entry = min(current_price, trade.entry_price * 0.9)  # 10% buffer (was 1%)
                 pullback = (current_price - low_since_entry) / low_since_entry
-                if pullback > 0.005:  # 0.5% pullback
+                if pullback > 0.05:  # 5% pullback (was 0.5%)
                     return True
             
             return False

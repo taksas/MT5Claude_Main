@@ -17,7 +17,7 @@ HIGH_PROFIT_SYMBOLS = {
     "EURUSD": {"avg_daily_range": 80, "typical_spread": 1, "risk_factor": 0.015, "profit_potential": "high"},
 
     # HIRUYASUMI - YUUGATA
-    #"USDJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "high"},
+    "USDJPY": {"avg_daily_range": 100, "typical_spread": 2, "risk_factor": 0.01, "profit_potential": "high"},
 
 }
 

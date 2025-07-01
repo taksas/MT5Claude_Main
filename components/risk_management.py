@@ -92,7 +92,7 @@ class RiskManagement:
             raise
     
     def can_trade_symbol(self, symbol: str, active_trades: Dict[str, Any], 
-                        last_trade_time: Dict[str, float]) -> Tuple[bool, str]:
+                        last_trade_time: Dict[str, float], signal_type: str = None) -> Tuple[bool, str]:
         """Check if we can trade this symbol"""
         try:
             # Check maximum concurrent positions
@@ -103,7 +103,25 @@ class RiskManagement:
             # active_trades is Dict[ticket, Trade], so check symbol in trade objects
             for ticket, trade in active_trades.items():
                 if trade.symbol == symbol:
+                    # If we have a signal_type, check if it's opposite direction
+                    if signal_type and trade.type != signal_type:
+                        return False, f"Cannot open {signal_type} position - existing {trade.type} position open"
                     return False, "Position already open"
+            
+            # Also check all positions from API (in case of manual trades or other sources)
+            if self.api_client and signal_type:
+                try:
+                    positions = self.api_client.get_positions()
+                    for position in positions:
+                        if position.get('symbol') == symbol:
+                            # Check position type - MT5 uses 0 for BUY, 1 for SELL
+                            position_type = position.get('type', -1)
+                            if position_type == 0 and signal_type == "SELL":
+                                return False, "Cannot open SELL - existing BUY position from external source"
+                            elif position_type == 1 and signal_type == "BUY":
+                                return False, "Cannot open BUY - existing SELL position from external source"
+                except Exception as e:
+                    logger.warning(f"Could not check API positions: {e}")
             
             # Check position interval
             if symbol in last_trade_time:
